@@ -38,7 +38,7 @@ CPU usage between 0.0 and 100 [percent]
 The idea is borrowed from https://discourse.julialang.org/t/get-cpu-usage/24468/7
 Thank you @fonsp.
 """
-function cpu_percent(period::Real=1.0)
+function cpu_percent(period::Real = 1.0)
 
     info = Sys.cpu_info()
     busies = busy_time.(info)
@@ -53,7 +53,7 @@ function cpu_percent(period::Real=1.0)
     100 * busies ./ (idles .+ busies)
 end
 
-function clearline(; move_up::Bool=false)
+function clearline(; move_up::Bool = false)
     buf = IOBuffer()
     print(buf, "\x1b[2K") # clear line
     print(buf, "\x1b[999D") # rollback the cursor
@@ -63,7 +63,7 @@ end
 
 function clearlines(H::Integer)
     for i = 1:H
-        clearline(move_up=true)
+        clearline(move_up = true)
     end
 end
 
@@ -77,7 +77,7 @@ end
 
 function layout(x, y)
     ncpus = length(y)
-    y = round.(y, digits=1)
+    y = round.(y, digits = 1)
     _, cols = displaysize(stdout)
 
     plts = []
@@ -86,31 +86,26 @@ function layout(x, y)
     for c in chunks
         push!(
             plts,
-            barplot(
-                x[c], y[c],
-                # title="CPU Usage",
-                maximum=100, width=max(5, 15), height=length(c),
-            )
+            barplot(x[c], y[c], maximum = 100, width = max(5, 15), height = length(c)),
         )
     end
+    memoryusage = round((Sys.total_memory() - Sys.free_memory()) / 2^20 / 1000, digits = 1)
+
+    push!(
+        plts,
+        barplot(
+            ["Mem: "],
+            [memoryusage],
+            maximum = Sys.total_memory() / 2^20 / 1000,
+            width = max(10, 40),
+        ),
+    )
 
     n = max(1, cols ÷ 25)
     chunks = collect(Iterators.partition(plts, n))
 
-    foldl(/, map(c->prod(UnicodePlots.panel.(c)), chunks))
 
-    chunks = collect(Iterators.partition(plts, n))
-
-    canvas = foldl(/, map(c->prod(UnicodePlots.panel.(c)), chunks))
-
-    memoryusage = round((Sys.total_memory() - Sys.free_memory()) / 2 ^ 20 / 1000, digits=1)
-
-    canvas / UnicodePlots.panel(barplot(
-        ["Mem: "], 
-        [memoryusage],
-        title="Memmory $(memoryusage)/$(floor(Sys.total_memory()/2^20 / 1000)) GB",
-        maximum=Sys.total_memory()/2^20 / 1000, width=max(10, 40)
-    ))
+    return foldl(/, map(c -> prod(UnicodePlots.panel.(c)), chunks))
 end
 
 
