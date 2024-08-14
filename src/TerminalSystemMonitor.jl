@@ -1,29 +1,7 @@
 module TerminalSystemMonitor
 
-#=
-                              CPU Usage
-          ┌                                               ┐
-    id: 0 ┤■■■■■■■■■■ 23
-    id: 1 ┤ 0
-    id: 2 ┤■■■■■ 11.1111
-    id: 3 ┤ 0
-    id: 4 ┤■■ 5.05051
-    id: 5 ┤ 0
-    id: 6 ┤■ 3
-    id: 7 ┤ 0
-    id: 8 ┤ 1
-    id: 9 ┤ 0
-   id: 10 ┤ 0
-   id: 11 ┤ 0
-   id: 12 ┤ 0
-   id: 13 ┤ 0
-   id: 14 ┤ 0
-   id: 15 ┤ 0
-          └                                               ┘
-=#
-
 using UnicodePlots
-using Term
+using Term # this is required by UnicodePlots.panel
 
 idle_time(info::Sys.CPUinfo) = Int64(info.cpu_times!idle)
 
@@ -97,7 +75,7 @@ function layout(x, y)
             ["Mem: "],
             [memoryusage],
             maximum = Sys.total_memory() / 2^20 / 1000,
-            width = max(10, 40),
+            width = max(5, 15),
         ),
     )
 
