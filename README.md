@@ -2,7 +2,7 @@
 
 ## Description
 
-This Julia package displays CPU and RAM memory usage information on your computer.
+This Julia package displays CPU and RAM usage information on your computer.
 
 ## Installation
 
@@ -10,29 +10,39 @@ This Julia package displays CPU and RAM memory usage information on your compute
 
 #### macOS or Linux
 
+To install Julia on macOS or Linux, run the following command in your terminal:
+
 ```sh
 $ curl -fsSL https://install.julialang.org | sh
 ```
 
-####
+#### Windows
+
+For Windows, you can install Julia using the following command in PowerShell:
 
 ```powershell
 PS> winget install julia -s msstore
+After installation, you can confirm Julia is installed by running:
 ```
 
-You can run `julia --version` to confirm Julia is installed on your computer.
-
-
-### Step 2. Download source code
-
 ```sh
+$ julia --version
+```
+
+### Step 2. Download the source code
+
+Clone the repository and navigate to the directory:
+
+```
+sh
 $ git clone https://github.com/AtelierArith/TerminalSystemMonitor.jl.git
 $ cd TerminalSystemMonitor.jl
 ```
 
 ### Step 3. Resolve dependencies
+To resolve dependencies, ensure you are in the correct directory, then activate the Julia environment and instantiate the project:
 
-```
+```sh
 $ pwd
 path/to/TerminalSystemMonitor.jl
 $ ls
@@ -43,15 +53,17 @@ julia> using Pkg; Pkg.activate("."); Pkg.instantiate()
 
 ## Usage
 
+Run the program using the following commands:
+
 ```sh
 $ ls
 Project.toml  README.md     main.jl       src
 $ julia main.jl
 ```
 
-You will get the following output like this:
+You will see an output similar to this:
 
-```
+```bash
 ──────────────────────╮╭──────────────────────╮
 │     ┌               ┐││     ┌               ┐│
 │id: 0┤■■■■ 37         ││id: 4┤■■ 23.2         │
@@ -75,26 +87,28 @@ You will get the following output like this:
 ╰──────────────────────╯
 ```
 
-Ofcourse, you can launch the functionality in your terminal.
+Alternatively, you can launch the functionality directly from Julia:
 
 ```julia
 julia> using TerminalSystemMonitor: main; main()
 ```
 
-## Why not htop?
+## Why not `htop`?
 
-You might think of the `htop' command. Yes, you can:
+You might be familiar with the `htop` command, which provides similar functionality. You can use `htop` in Julia as follows:
 
 ```julia
 julia> using Htop_jll; run(Htop_jll.htop())
 ```
 
-However, [Htop_jll](https://github.com/JuliaBinaryWrappers/Htop_jll.jl?tab=readme-ov-file#platforms) only supports Unix systems. Our Julia package runs on Windows as long as Term.jl and UnicodePlots.jl support Windows.
+However, `Htop_jll` only supports Unix-based systems. The TerminalSystemMonitor.jl package also supports Windows as long as Term.jl and UnicodePlots.jl are available on the platform.
 
-## Why not bottom?
+## Why not `bottom`?
 
-It's possible. We could use [bottom](https://github.com/ClementTsang/bottom) a.k.a `btm` command.
+You can also use bottom, also known as the btm command:
 
-```sh
+```
 btm -b
 ```
+
+However, TerminalSystemMonitor.jl offers a cross-platform solution that integrates directly with Julia, providing similar functionality in a familiar environment.
