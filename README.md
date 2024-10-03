@@ -1,5 +1,38 @@
 # TerminalSystemMonitor.jl
 
+## !!!LET'S USE `juliac` IN ACTION!!!
+
+- Install Julia using Juliaup.
+
+```sh
+$ curl -fsSL https://install.julialang.org | sh -s -- --yes
+```
+
+Add `nightly` channel
+
+```sh
+$ juliaup add nightly
+```
+
+Run with `+nightly` option
+
+```sh
+$ julia +nightly --version
+julia version 1.12.0-DEV
+```
+
+`julia +nightly <julia_script.jl>` will run user specified script with (nightly) latest version of Julia.
+
+### Compile Julia package
+
+```
+$ cat run.sh
+julia +nightly --project juliac.jl --output-exe main buildmodule.jl && ./main
+$ bash run.sh
+```
+
+---
+
 ## Description
 
 This Julia package displays CPU and RAM usage information on your computer.
