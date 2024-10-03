@@ -46,19 +46,21 @@ function clearlines(H::Integer)
 end
 
 function hidecursor()
-    print("\x1b[?25l") # hidecursor
+    print(Core.stdout, "\x1b[?25l") # hidecursor
 end
 
 function unhidecursor()
-    print("\u001B[?25h") # unhide cursor
+    print(Core.stdout, "\u001B[?25h") # unhide cursor
 end
 
 function layout(x, y)
     ncpus = length(y)
     y = round.(y, digits = 1)
-    _, cols = displaysize(stdout)
+    (_, cols) = displaysize()
 
-    plts = []
+    dummy = barplot(["a", "b"], [1., 2.])
+
+    plts = typeof(dummy)[]
 
     chunks = collect.(collect(Iterators.partition((1:ncpus), 4)))
     for c in chunks
@@ -93,9 +95,6 @@ function main()
         try
             y = cpu_percent()
             x = ["id: $(i-1)" for (i, _) in enumerate(y)]
-            (_, cols) = displaysize(stdout)
-
-            # f = barplot(x, y, title="CPU Usage", maximum=100, width=max(10, cols - 15), height=length(y))
             f = layout(x, y)
             str = string(f)
             clearlines(2 + length(collect(eachmatch(r"\n", str))))
@@ -103,15 +102,15 @@ function main()
         catch e
             unhidecursor() # unhide cursor
             if e isa InterruptException
-                @info "Intrrupted"
+                # @info "Intrrupted"
                 break
             else
-                @warn "Got Exception"
+                # @warn "Got Exception"
                 rethrow(e) # so we don't swallow true exceptions
             end
         end
     end
-    @info "Unhide cursor"
+    # @info "Unhide cursor"
     unhidecursor() # unhide cursor
 end
 
