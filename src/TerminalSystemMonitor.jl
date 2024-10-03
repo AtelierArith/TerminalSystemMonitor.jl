@@ -36,7 +36,7 @@ function clearline(; move_up::Bool = false)
     print(buf, "\x1b[2K") # clear line
     print(buf, "\x1b[999D") # rollback the cursor
     move_up && print(buf, "\x1b[1A") # move up
-    print(buf |> take! |> String)
+    print(Core.stdout, buf |> take! |> String)
 end
 
 function clearlines(H::Integer)

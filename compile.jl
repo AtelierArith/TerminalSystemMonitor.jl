@@ -8,16 +8,16 @@ function ColorTypes.register_hints()
 end
 
 #=
-function Base.argmax(arr::Array{Float64, 1})
-	m = -10000.0
-	am = 1
-	for i in eachindex(arr)
-		if arr[i] > m
-			m = arr[i]
-			am = i
-		end
-	end
-	return am
+function Base.argmax(arr::Array{Float64,1})
+    m = -10000.0
+    am = 1
+    for i in eachindex(arr)
+        if arr[i] > m
+            m = arr[i]
+            am = i
+        end
+    end
+    return am
 end
 =#
 
@@ -62,7 +62,7 @@ function UnicodePlots.default_formatter(kw)
 end
 
 Base._nt_names(::Type{NamedTuple{(:maximum,),Tuple{Int64}}}) = (:maximum,)
-Base._nt_names(::Type{NamedTuple{(:height,), Tuple{Int64}}}) = (:height,)
+Base._nt_names(::Type{NamedTuple{(:height,),Tuple{Int64}}}) = (:height,)
 
 using UnicodePlots.Crayons: Crayons
 
@@ -81,17 +81,16 @@ struct MyBarplotGraphics{R<:Number,F<:Function,XS<:Function} <: UnicodePlots.Gra
     formatter::F
     xscale::XS
 
-    function MyBarplotGraphics(
-        bars::AbstractVector{R},
-        char_width::Int;
-        symbols::Union{AbstractVector,Tuple} = KEYWORDS.symbols,
-        color::Union{UserColorType,AbstractVector} = :green,
-        maximum::Union{Number,Nothing} = nothing,
-        # formatter::Function = default_formatter((;)),
-        formatter::Function = _f,
-        visible::Bool = KEYWORDS.visible,
-        xscale = KEYWORDS.xscale,
-    ) where {R<:Number}
+    function MyBarplotGraphics(bars::AbstractVector{R}, char_width::Int) where {R<:Number}
+
+        symbols::Union{AbstractVector,Tuple} = KEYWORDS.symbols
+        color::Union{UserColorType,AbstractVector} = :green
+        maximum::Union{Number,Nothing} = nothing
+        # formatter::Function = default_formatter((;))
+        formatter::Function = _f
+        visible::Bool = KEYWORDS.visible
+        xscale = KEYWORDS.xscale
+
         for s ∈ symbols
             length(s) == 1 ||
                 throw(ArgumentError("symbol has to be a single character, got \"$s\""))
@@ -147,14 +146,37 @@ function UnicodePlots.addrow!(
     c
 end
 
-function UnicodePlots.preprocess!(::IO, c::MyBarplotGraphics)
+function _tmp(c::MyBarplotGraphics)
+    c.max_val[] = -Inf
+    c.max_len[] = 0
+    nothing
+end
+
+function UnicodePlots.preprocess!(
+    ::Base.IOContext{Base.GenericIOBuffer{Memory{UInt8}}},
+    c::CompileSandbox.MyBarplotGraphics{
+        Float64,
+        typeof(CompileSandbox._f),
+        typeof(Base.identity),
+    },
+)
     max_val, i = findmax(c.xscale.(c.bars))
     c.max_val[] = max(max_val, c.maximum)
     c.max_len[] = length(c.formatter(c.bars[i]))
-    c -> (c.max_val[] = -Inf; c.max_len[] = 0)
+    _tmp
 end
 
-function UnicodePlots.print_row(io::IO, print_nocol, print_color, c::MyBarplotGraphics, row::Integer)
+function UnicodePlots.print_row(
+    io::Base.IOContext{Base.GenericIOBuffer{Memory{UInt8}}},
+    print_nocol::typeof(Base.print),
+    print_color::typeof(UnicodePlots.print_color),
+    c::CompileSandbox.MyBarplotGraphics{
+        Float64,
+        typeof(CompileSandbox._f),
+        typeof(Base.identity),
+    },
+    row::Int,
+)
     1 ≤ row ≤ nrows(c) || throw(ArgumentError("`row` out of bounds: $row"))
     val = (bar = c.bars[row]) |> c.xscale
     nsyms = length(c.symbols)
@@ -164,7 +186,7 @@ function UnicodePlots.print_row(io::IO, print_nocol, print_color, c::MyBarplotGr
     print_color(io, c.colors[row], c.symbols[nsyms]^bar_head)
     if nsyms > 1
         rem = (frac * max_bar_width - bar_head) * (nsyms - 2)
-        print_color(io, c.colors[row], rem > 0 ? c.symbols[1 + round(Int, rem)] : ' ')
+        print_color(io, c.colors[row], rem > 0 ? c.symbols[1+round(Int, rem)] : ' ')
         bar_head += 1  # padding, we printed one more char
     end
     len = if bar ≥ 0
@@ -212,18 +234,16 @@ function UnicodePlots.barplot(
         text, heights = _text, _heights
     end
 
-    area = MyBarplotGraphics(
-        heights,
-        something(width, DEFAULT_WIDTH[]))
-        #formatter = default_formatter(pkw),
-        #symbols = KEYWORDS.symbols,
-        #maximum = nothing,
-        #xscale = xscale,
-        #color = color,
-        #okw...,
+    area = MyBarplotGraphics(heights, something(width, DEFAULT_WIDTH[]))
+    #formatter = default_formatter(pkw),
+    #symbols = KEYWORDS.symbols,
+    #maximum = nothing,
+    #xscale = xscale,
+    #color = color,
+    #okw...,
     #)
     # plot = Plot(area; border = :barplot, xlabel = transform_name(xscale), pkw...)
-    plot = Plot(area; border = :barplot)
+    plot = _Plot(area, :barplot)
 
     isempty(name) || label!(plot, :r, string(name), suitable_color(plot.graphics, color))
     for i ∈ eachindex(text)
@@ -233,31 +253,30 @@ function UnicodePlots.barplot(
     plot
 end
 
-function Plot(
-    graphics::MyBarplotGraphics;
-    title::AbstractString = PLOT_KEYWORDS.title,
-    xlabel::AbstractString = PLOT_KEYWORDS.xlabel,
-    ylabel::AbstractString = PLOT_KEYWORDS.ylabel,
-    zlabel::AbstractString = PLOT_KEYWORDS.zlabel,
-    unicode_exponent::Bool = PLOT_KEYWORDS.unicode_exponent,
-    thousands_separator::Char = PLOT_KEYWORDS.thousands_separator,
-    border::Symbol = PLOT_KEYWORDS.border,
-    compact::Bool = PLOT_KEYWORDS.compact,
-    margin::Integer = PLOT_KEYWORDS.margin,
-    padding::Integer = PLOT_KEYWORDS.padding,
-    labels::Bool = PLOT_KEYWORDS.labels,
-    colorbar::Bool = PLOT_KEYWORDS.colorbar,
-    colorbar_border::Symbol = PLOT_KEYWORDS.colorbar_border,
-    colorbar_lim = PLOT_KEYWORDS.colorbar_lim,
-    colormap::Any = PLOT_KEYWORDS.colormap,
-    projection::Union{Nothing,MVP} = nothing,
-    ignored...,
-)
+function _Plot(graphics::MyBarplotGraphics, border::Symbol)
+
+    title::AbstractString = PLOT_KEYWORDS.title
+    xlabel::AbstractString = PLOT_KEYWORDS.xlabel
+    ylabel::AbstractString = PLOT_KEYWORDS.ylabel
+    zlabel::AbstractString = PLOT_KEYWORDS.zlabel
+    unicode_exponent::Bool = PLOT_KEYWORDS.unicode_exponent
+    thousands_separator::Char = PLOT_KEYWORDS.thousands_separator
+    # border::Symbol = PLOT_KEYWORDS.border
+    compact::Bool = PLOT_KEYWORDS.compact
+    margin::Integer = PLOT_KEYWORDS.margin
+    padding::Integer = PLOT_KEYWORDS.padding
+    labels::Bool = PLOT_KEYWORDS.labels
+    colorbar::Bool = PLOT_KEYWORDS.colorbar
+    colorbar_border::Symbol = PLOT_KEYWORDS.colorbar_border
+    colorbar_lim = PLOT_KEYWORDS.colorbar_lim
+    colormap::Any = PLOT_KEYWORDS.colormap
+    projection::Union{Nothing,MVP} = nothing
+
     margin < 0 && throw(ArgumentError("`margin` must be ≥ 0"))
     projection = something(projection, MVP())
     E = Val{is_enabled(projection)}
     F = typeof(projection.dist)
-    Plot{MyBarplotGraphics,E,F}(
+    UnicodePlots.Plot{MyBarplotGraphics,E,F}(
         graphics,
         projection,
         Ref(0),
@@ -283,6 +302,134 @@ function Plot(
     )
 end
 
+import Term
+using Term: Padding, AbstractRenderable, default_width, console_width, Measure, Panel
+using Term.Panels: content_as_renderable, render
+using Term.Layout: RenderablesUnion
+using Term.Segments: get_string_types, Segment
+using Term.Renderables: Renderable
+
+Term.default_width(io::Core.CoreSTDOUT) = displaysize()[end]
+Term.console_width(io::Core.CoreSTDOUT) = displaysize()[end]
+
+function Term.remove_markup(input_text; remove_orphan_tags = true)::String
+    input_text
+end
+
+function Term.Panel(
+    content::Union{AbstractString,AbstractRenderable};
+    fit::Bool = false,
+    padding::Union{Nothing,Padding,NTuple} = nothing,
+    width::Int = default_width(),
+    style::String = "default",
+)
+    padding = if isnothing(padding)
+        if style == "hidden"
+            Padding(0, 0, 0, 0)
+        else
+            Padding(2, 2, 0, 0)
+        end
+    else
+        Padding(padding)
+    end
+
+    # estimate content and panel size 
+    content_width = content isa AbstractString ? Measure(content).w : content.measure.w
+    panel_width = if fit
+        content_width + padding.left + padding.right + 2
+    else
+        width
+    end
+
+    # if too large, set fit=false
+    fit = if fit
+        (!isa(content, AbstractString) ? panel_width <= console_width() : true)
+    else
+        false
+    end
+    width = fit ? min(panel_width, console_width()) : width
+
+    # @debug "Ready to make panel" content content_width panel_width width console_width() fit
+    return Panel(content, Val(fit), width, padding)
+end
+
+function Term.Panel(
+    content::Union{AbstractString,AbstractRenderable},
+    ::Val{true},
+    width::Int,
+    padding::Padding
+)
+    height::Union{Nothing,Int} = nothing
+    background::Union{Nothing,String} = nothing
+    justify::Symbol = :left
+
+    Δw = padding.left + padding.right + 2
+    Δh = padding.top + padding.bottom
+
+    # create content
+    # @info "panel fit" width height Δw Δh background
+    content = content_as_renderable(content, width, Δw, justify, background)
+
+    # estimate panel size
+    panel_measure = Measure(
+        max(something(height, 0), content.measure.h + padding.top + padding.bottom + 2),
+        max(width, content.measure.w + padding.left + padding.right + 2),
+    )
+
+    # @debug "Creating fitted panel" content.measure panel_measure content
+    return render(
+        content;
+        panel_measure = panel_measure,
+        content_measure = content.measure,
+        Δw = Δw,
+        Δh = Δh,
+        padding = padding,
+        background = background,
+        justify = justify,
+    )
+end
+
+function Term.do_by_line(fn::Function, text::AbstractString)::String
+    arrstr = String[fn(sl) for sl in Term.split_lines(text)]
+    join(arrstr, "\n")
+end
+
+function Term.Segments.get_string_types(a, b)
+    return String
+end
+
+function Term.Layout.hstack(r1::Term.Panels.Panel, r2::Term.Panels.Panel; pad::Int = 0)
+    # get dimensions of final renderable
+    h1 = r1.measure.h
+    h2 = r2.measure.h
+    Δh = abs(h2 - h1)
+
+    # make sure both renderables have the same number of segments
+    if h1 > h2
+        s1_ = r1.segments
+        s2_ = vcat(r2.segments, fill(Segment(' '^(r2.measure.w)), Δh))
+    elseif h1 < h2
+        s1_ = vcat(r1.segments, fill(Segment(' '^(r1.measure.w)), Δh))
+        s2_ = r2.segments
+    else
+        s1_, s2_, = r1.segments, r2.segments
+    end
+
+    s1 = s1_::Vector{Segment}
+    s2 = s2_::Vector{Segment}
+
+    # combine segments
+    stype = String
+    m = min(length(s1), length(s2))
+
+    segments::Vector{Segment} = map(1:m) do i
+        Segment(
+            stype(s1[i].text * ' '^pad * s2[i].text),
+            Measure(1, s1[i].measure.w + pad + s2[i].measure.w),
+        )
+    end
+    return Renderable(segments, Measure(segments))
+end
 # end dirty hack
 
 using TerminalSystemMonitor
