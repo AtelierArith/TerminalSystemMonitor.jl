@@ -42,7 +42,23 @@ using UnicodePlots:
     PLOT_KEYWORDS,
     is_enabled,
     ColorMap,
-    colormap_callback
+    colormap_callback,
+    BLANK,
+    blank,
+    xlabel,
+    ylabel,
+    zlabel,
+    preprocess!,
+    BORDERMAP,
+    BORDER_COLOR,
+    no_ansi_escape,
+    title,
+    Crayon,
+    print_title,
+    print_labels,
+    print_border,
+    print_row,
+    ImageGraphics
 
 import UnicodePlots
 
@@ -201,6 +217,265 @@ function UnicodePlots.print_row(
     nothing
 end
 
+function UnicodePlots._show(
+    end_io::Base.IOContext{Base.GenericIOBuffer{Memory{UInt8}}},
+    print_nocol::typeof(Base.print),
+    print_color::typeof(UnicodePlots.print_color),
+    p::Plot
+)
+    buf = PipeBuffer()  # buffering, for performance
+    io_color = get(end_io, :color, false)
+    io = IOContext(buf, :color => io_color, :displaysize => displaysize(end_io))
+
+    g = p.graphics
+    🗷 = Char(BLANK)  # blank outside graphics
+    🗹 = blank(g)  # blank inside graphics
+    ############################################################
+    # 🗷 = 'x'  # debug
+    # 🗹 = Char(typeof(g) <: BrailleCanvas ? '⠿' : 'o')  # debug
+    ############################################################
+    xlab, ylab, zlab = axes_labels = xlabel(p), ylabel(p), zlabel(p)
+    postprocess! = preprocess!(io, g)
+    nr, nc = nrows(g), ncols(g)
+
+    p_width = nc + 2  # left corner + border length (number of graphics cols) + right corner
+    if p.compact[]
+        isempty(xlab) || label!(p, :b, xlab)
+        isempty(ylab) || label!(p, :l, round(Int, nr / 2), ylab)
+    end
+
+    bmap = BORDERMAP[p.border[] ≡ :none && g isa BrailleCanvas ? :bnone : p.border[]]
+    bc = BORDER_COLOR[]
+
+    # get length of largest strings to the left and right
+    max_len_l = if p.labels[] && !isempty(p.labels_left)
+        maximum(length ∘ no_ansi_escape, values(p.labels_left))
+    else
+        0
+    end
+    max_len_r = if p.labels[] && !isempty(p.labels_right)
+        maximum(length ∘ no_ansi_escape, values(p.labels_right))
+    else
+        0
+    end
+    max_len_a = p.labels[] ? maximum(length ∘ no_ansi_escape, axes_labels) : 0
+    if !p.compact[] && p.labels[] && !isempty(ylab)
+        max_len_l += length(ylab) + 1
+    end
+
+    has_labels =
+        max_len_l > 0 || max_len_r > 0 || max_len_a > 0 || length(p.decorations) > 0
+    has_labels &= p.labels[]
+
+    plot_offset = max_len_l + p.margin[] + p.padding[]  # offset where the plot (including border) begins
+    border_left_pad = 🗷^plot_offset  # padding-string between labels and border
+    plot_padding = 🗷^p.padding[]  # base padding-string (e.g. left to border)
+
+    cbar_pad = if p.cmap.bar
+        min_z_str, max_z_str =
+            map(x -> nice_repr(roundable(x) ? x : float_round_log10(x), p), p.cmap.lim)
+        len_z_lab = length(no_ansi_escape(zlabel(p)))
+        cbar_max_len = max(
+            length(min_z_str),
+            length(max_z_str),
+            WIDTH_CB + (len_z_lab > 0 ? p.padding[] + len_z_lab : 0),
+        )
+        🗷^cbar_max_len
+    else
+        ""
+    end
+
+    # trailing
+    border_right_pad = if p.cmap.bar
+        🗷^max_len_r  # colorbar labels can overlap padding
+    else
+        plot_padding * 🗷^max_len_r
+    end
+    border_right_cbar_pad = plot_padding * 🗷^max_len_r * cbar_pad
+
+    # plot the title and the top border
+    h_ttl, w_ttl = print_title(
+        io,
+        print_nocol,
+        print_color,
+        border_left_pad,
+        title(p),
+        border_right_cbar_pad * '\n',
+        🗹;
+        p_width = p_width,
+        color = io_color ? Crayon(foreground = :white, bold = true) : nothing,
+    )
+    h_lbl = print_labels(
+        io,
+        print_nocol,
+        print_color,
+        p,
+        :t,
+        nc - 2,
+        border_left_pad * 🗹,
+        🗹 * border_right_cbar_pad * '\n',
+        🗹,
+    )
+    g.visible && print_border(
+        io,
+        print_nocol,
+        print_color,
+        :t,
+        nc,
+        border_left_pad,
+        border_right_pad * (p.cmap.bar ? "" : "\n"),
+        bmap,
+    )
+    p.cmap.bar && print_colorbar_lim(
+        io,
+        print_nocol,
+        print_color,
+        p,
+        max_z_str,
+        bc,
+        cbar_max_len,
+        🗷,
+        '\n',
+    )
+
+    # compute position of ylabel
+    y_lab_row = round(nr / 2, RoundNearestTiesUp)
+
+    # plot all rows
+    for row ∈ 1:nr
+        # print left annotations
+        print_nocol(io, 🗷^p.margin[])
+        if has_labels
+            # Current labels to left and right of the row and their length
+            left_str   = get(p.labels_left, row, "")
+            left_col   = get(p.colors_left, row, bc)
+            right_str  = get(p.labels_right, row, "")
+            right_col  = get(p.colors_right, row, bc)
+            left_str_  = no_ansi_escape(left_str)
+            right_str_ = no_ansi_escape(right_str)
+            left_len   = length(left_str_)
+            right_len  = length(right_str_)
+            if !io_color
+                left_str  = left_str_
+                right_str = right_str_
+            end
+            if !p.compact[] && row == y_lab_row
+                # print ylabel
+                print_color(io, :normal, ylab)
+                print_nocol(io, 🗷^(max_len_l - length(ylab) - left_len))
+            else
+                # print padding to fill ylabel length
+                print_nocol(io, 🗷^(max_len_l - left_len))
+            end
+            # print the left annotation
+            print_color(io, left_col, left_str)
+        end
+        if g.visible
+            # print left border
+            print_nocol(io, plot_padding)
+            print_color(io, bc, bmap[:l])
+            # print canvas row
+            print_row(io, print_nocol, print_color, g, row)
+            if g isa ImageGraphics && g.sixel[]
+                offset = plot_offset + nc + 1  # COV_EXCL_LINE
+                # 1F: move cursor to the beginning of the previous line, 1 line up
+                # $(offset)C: move cursor to the right by an amount of $offset columns
+                print_nocol(io, "\e[1F\e[$(offset)C")  # COV_EXCL_LINE
+            end
+            # print right border (symmetry with left border and padding)
+            print_color(io, bc, bmap[:r])
+            print_nocol(io, plot_padding)
+        end
+        if has_labels
+            print_color(io, right_col, right_str)
+            print_nocol(io, 🗷^(max_len_r - right_len))
+        end
+        # print a colorbar element
+        p.cmap.bar && print_colorbar_row(
+            io,
+            print_nocol,
+            print_color,
+            p,
+            row,
+            nr,
+            zlab,
+            bc,
+            cbar_max_len,
+            🗷,
+        )
+        row < nr && print_nocol(io, '\n')
+    end
+    postprocess!(g)
+
+    (g.visible || p.cmap.bar || has_labels) && print_nocol(io, '\n')
+
+    # draw bottom border
+    g.visible && print_border(
+        io,
+        print_nocol,
+        print_color,
+        :b,
+        nc,
+        border_left_pad,
+        border_right_pad,
+        bmap,
+    )
+    p.cmap.bar && print_colorbar_lim(
+        io,
+        print_nocol,
+        print_color,
+        p,
+        min_z_str,
+        bc,
+        cbar_max_len,
+        🗷,
+        "",
+    )
+
+    # print bottom labels
+    w_lbl = 0
+    if has_labels
+        h_lbl += print_labels(
+            io,
+            print_nocol,
+            print_color,
+            p,
+            :b,
+            nc - 2,
+            '\n' * border_left_pad * 🗹,
+            🗹 * border_right_cbar_pad,
+            🗹,
+        )
+        if !p.compact[]
+            h_w = print_title(
+                io,
+                print_nocol,
+                print_color,
+                '\n' * border_left_pad,
+                xlab,
+                border_right_cbar_pad,
+                🗹;
+                p_width,
+            )
+            h_lbl += h_w[1]
+            w_lbl += h_w[2]
+        end
+    end
+
+    # delayed print (buffering)
+    print_nocol(end_io, read(buf, String))
+
+    # return the approximate image size
+    (
+        h_ttl + 1 + nr + 1 + h_lbl,  # +1 for borders
+        max(
+            w_ttl,
+            w_lbl,
+            length(border_left_pad) + p_width + length(border_right_cbar_pad),
+        ),
+    )
+end
+
 
 function UnicodePlots.barplot(
     text::AbstractVector{<:AbstractString},
@@ -316,6 +591,7 @@ function Term.remove_markup(input_text; remove_orphan_tags = true)::String
     input_text
 end
 
+#=
 function Term.Panel(
     content::Union{AbstractString,AbstractRenderable};
     fit::Bool = false,
@@ -388,6 +664,7 @@ function Term.Panel(
         justify = justify,
     )
 end
+=#
 
 function Term.do_by_line(fn::Function, text::AbstractString)::String
     arrstr = String[fn(sl) for sl in Term.split_lines(text)]
@@ -428,8 +705,19 @@ function Term.Layout.hstack(r1::Term.Panels.Panel, r2::Term.Panels.Panel; pad::I
             Measure(1, s1[i].measure.w + pad + s2[i].measure.w),
         )
     end
-    return Renderable(segments, Measure(segments))
+    return Term.Panels.Panel(segments, Measure(segments))
 end
+
+function Base.string(r::Term.Panel)
+    isnothing(r.segments) && return ""
+    seg_texts = map(r.segments) do s
+        s.text
+    end
+    # seg_texts = getfield.(r.segments, :text)
+    stype = String
+    return join(seg_texts, "\n") |> stype
+end
+
 # end dirty hack
 
 using TerminalSystemMonitor

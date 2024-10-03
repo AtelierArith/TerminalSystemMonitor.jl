@@ -79,8 +79,21 @@ function layout(x, y)
     n = max(1, cols ÷ 25)
     chunks = collect(Iterators.partition(plts, n))
 
-
-    return foldl(/, map(c -> prod(UnicodePlots.panel.(c)), chunks))
+    #=
+    #panels = map(chunks) do chunk
+        #p = Panel(fit=false)
+        #for c in chunk
+        #    p = p * UnicodePlots.panel(c)
+        #end
+        #
+        #prod(UnicodePlots.panel(c) for c in chunk)
+        #p
+    #end
+    =#
+    #return UnicodePlots.panel(plts[1])
+    return plts
+    #return "GOMAGOMA"
+    # return foldl(/, panels)
 end
 
 
@@ -90,10 +103,10 @@ function main()
         try
             y = cpu_percent()
             x = ["id: $(i-1)" for (i, _) in enumerate(y)]
-            f = layout(x, y)
-            str = string(f)
+            plts = layout(x, y)
+            str = join([Base.string(p; color = true) for p in plts], '\n')
             clearlines(2 + length(collect(eachmatch(r"\n", str))))
-            display(f)
+            println(Core.stdout, str)
         catch e
             unhidecursor() # unhide cursor
             if e isa InterruptException
