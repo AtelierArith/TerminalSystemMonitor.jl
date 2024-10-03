@@ -2,6 +2,16 @@
 
 ## !!!LET'S USE `juliac` IN ACTION!!!
 
+### TL;DR
+
+```sh
+git clone -b juliac-patch https://github.com/AtelierArith/TerminalSystemMonitor.jl.git
+cd TerminalSystemMonitor.jl
+bash run.sh
+```
+
+## Usage
+
 - Install Julia using Juliaup.
 
 ```sh
