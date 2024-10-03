@@ -58,17 +58,12 @@ function layout(x, y)
     y = round.(y, digits = 1)
     (_, cols) = displaysize()
 
-    dummy = barplot(["a", "b"], [1., 2.])
-
-    plts = typeof(dummy)[]
-
     chunks = collect.(collect(Iterators.partition((1:ncpus), 4)))
-    for c in chunks
-        push!(
-            plts,
-            barplot(x[c], y[c], maximum = 100, width = max(5, 15), height = length(c)),
-        )
+
+    plts = map(chunks) do c
+        barplot(x[c], y[c], maximum = 100, width = max(5, 15), height = length(c))
     end
+
     memoryusage = round((Sys.total_memory() - Sys.free_memory()) / 2^20 / 1000, digits = 1)
 
     push!(
