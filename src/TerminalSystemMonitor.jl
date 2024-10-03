@@ -104,7 +104,7 @@ function main()
             x = ["id: $(i-1)" for (i, _) in enumerate(y)]
             plts = layout(x, y)
             str = join([Base.string(p; color = true) for p in plts], '\n')
-            clearlines(2 + length(collect(eachmatch(r"\n", str))))
+            clearlines(1 + length(collect(eachmatch(r"\n", str))))
             println(Core.stdout, str)
         catch e
             unhidecursor() # unhide cursor
