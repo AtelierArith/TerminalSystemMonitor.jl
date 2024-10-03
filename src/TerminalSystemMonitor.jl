@@ -92,7 +92,6 @@ function layout(x, y)
     =#
     #return UnicodePlots.panel(plts[1])
     return plts
-    #return "GOMAGOMA"
     # return foldl(/, panels)
 end
 
