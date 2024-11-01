@@ -45,6 +45,11 @@ function clearlines(H::Integer)
     end
 end
 
+function clearlinesall()
+    CSI = "\x1b["
+    print("$(CSI)H$(CSI)2J")
+end
+
 function hidecursor()
     print("\x1b[?25l") # hidecursor
 end
@@ -86,19 +91,22 @@ function layout(x, y)
     return foldl(/, map(c -> prod(UnicodePlots.panel.(c)), chunks))
 end
 
-
 function main()
     hidecursor()
+
     while true
         try
             y = cpu_percent()
             x = ["id: $(i-1)" for (i, _) in enumerate(y)]
-            (_, cols) = displaysize(stdout)
+            (newrows, newcols) = displaysize(stdout)
 
             # f = barplot(x, y, title="CPU Usage", maximum=100, width=max(10, cols - 15), height=length(y))
             f = layout(x, y)
             str = string(f)
-            clearlines(2 + length(collect(eachmatch(r"\n", str))))
+            newheight = 2 + length(collect(eachmatch(r"\n", str)))
+
+            clearlinesall()
+
             display(f)
         catch e
             unhidecursor() # unhide cursor
