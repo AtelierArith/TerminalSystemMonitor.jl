@@ -81,7 +81,7 @@ function layout(x, y)
         memorytotGB, memoryusageGB, "GB"
     end
 
-    seconds = Sys.uptime()
+    seconds = floor(Int, Sys.uptime())
     datetime = DateTime(1970) + Second(seconds)
     push!(
         plts,
