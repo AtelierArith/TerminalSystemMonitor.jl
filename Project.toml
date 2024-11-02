@@ -10,4 +10,5 @@ UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
 
 [compat]
 Dates = "1"
+UnicodePlots = "3.7.0"
 julia = "1"
