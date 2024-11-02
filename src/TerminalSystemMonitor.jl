@@ -88,10 +88,10 @@ function layout(x, y)
         barplot(
             ["Mem: "],
             [memoryusage],
-            title= join(
+            xlabel= join(
                 [
                     "Load average: " * join(string.(round.(Sys.loadavg(), digits=2)),' '),
-                    "     Uptime: $(max(Day(0), Day(datetime)-Day(1))), $(Dates.format(datetime, "HH:MM:SS"))",
+                    "      Uptime: $(max(Day(0), Day(datetime)-Day(1))), $(Dates.format(datetime, "HH:MM:SS"))",
                 ],
                 '\n',
             ),
