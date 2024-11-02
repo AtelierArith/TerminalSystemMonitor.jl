@@ -4,5 +4,9 @@ authors = ["Satoshi Terasaki <terasakisatoshi.math@gmail.com>"]
 version = "0.0.1"
 
 [deps]
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
 UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
+
+[compat]
+Dates = "1.11.0"

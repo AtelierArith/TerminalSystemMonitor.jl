@@ -1,7 +1,8 @@
 module TerminalSystemMonitor
 
+using Dates: Dates, Day, DateTime, Second
 using UnicodePlots
-using Term # this is required by UnicodePlots.panel
+import Term # this is required by UnicodePlots.panel
 
 idle_time(info::Sys.CPUinfo) = Int64(info.cpu_times!idle)
 
@@ -72,14 +73,30 @@ function layout(x, y)
             barplot(x[c], y[c], maximum = 100, width = max(5, 15), height = length(c)),
         )
     end
-    memoryusage = round((Sys.total_memory() - Sys.free_memory()) / 2^20 / 1000, digits = 1)
+    memoryusageGB = round((Sys.total_memory() - Sys.free_memory()) / 2^30, digits = 1)
+    memorytotGB = Sys.total_memory() / 2 ^ 30
+    (memorytot, memoryusage, memoryunit) = if memorytotGB ≤ 1.0
+        1024memorytotGB, 1024memoryusageGB, "MB"
+    else
+        memorytotGB, memoryusageGB, "GB"
+    end
 
+    seconds = Sys.uptime()
+    datetime = DateTime(1970) + Second(seconds)
     push!(
         plts,
         barplot(
             ["Mem: "],
             [memoryusage],
-            maximum = Sys.total_memory() / 2^20 / 1000,
+            title= join(
+                [
+                    "Load average: " * join(string.(round.(Sys.loadavg(), digits=2)),' '),
+                    "     Uptime: $(max(Day(0), Day(datetime)-Day(1))), $(Dates.format(datetime, "HH:MM:SS"))",
+                ],
+                '\n',
+            ),
+            name="$(memorytot) $(memoryunit)",
+            maximum = Sys.total_memory() / 2^30,
             width = max(5, 15),
         ),
     )
