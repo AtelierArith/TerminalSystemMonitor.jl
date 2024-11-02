@@ -76,9 +76,9 @@ function layout(x, y)
     memoryusageGB = round((Sys.total_memory() - Sys.free_memory()) / 2^30, digits = 1)
     memorytotGB = Sys.total_memory() / 2 ^ 30
     (memorytot, memoryusage, memoryunit) = if memorytotGB ≤ 1.0
-        1024memorytotGB, 1024memoryusageGB, "MB"
+        round(1024memorytotGB), 1024memoryusageGB, "MB"
     else
-        memorytotGB, memoryusageGB, "GB"
+        round(memorytotGB), memoryusageGB, "GB"
     end
 
     seconds = floor(Int, Sys.uptime())
