@@ -4,6 +4,8 @@ using Dates: Dates, Day, DateTime, Second
 using UnicodePlots
 import Term # this is required by UnicodePlots.panel
 
+export main
+
 idle_time(info::Sys.CPUinfo) = Int64(info.cpu_times!idle)
 
 busy_time(info::Sys.CPUinfo) = Int64(
@@ -108,7 +110,7 @@ function layout(x, y)
     return foldl(/, map(c -> prod(UnicodePlots.panel.(c)), chunks))
 end
 
-function main()
+function main(dummyargs...)
     hidecursor()
 
     while true
@@ -139,5 +141,7 @@ function main()
     @info "Unhide cursor"
     unhidecursor() # unhide cursor
 end
+
+@isdefined(var"@main") ? (@main) : exit(main(ARGS))
 
 end # module TerminalSystemMonitor
