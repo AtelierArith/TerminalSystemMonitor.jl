@@ -91,11 +91,13 @@ function layout(x, y)
             xlabel= join(
                 [
                     "Load average: " * join(string.(round.(Sys.loadavg(), digits=2)),' '),
+                    # Adds spaces for better styling
                     "      Uptime: $(max(Day(0), Day(datetime)-Day(1))), $(Dates.format(datetime, "HH:MM:SS"))",
                 ],
                 '\n',
             ),
-            name="$(memorytot) $(memoryunit)",
+            # Adds a space for better styling
+            name=" $(memorytot) $(memoryunit)",
             maximum = Sys.total_memory() / 2^30,
             width = max(5, 15),
         ),
@@ -114,13 +116,10 @@ function main(dummyargs...)
     while true
         try
             y = cpu_percent()
-            x = ["id: $(i-1)" for (i, _) in enumerate(y)]
-            (newrows, newcols) = displaysize(stdout)
+            npad = 1+floor(Int, log10(length(y)))
+            x = ["id: $(lpad(i-1, npad))" for (i, _) in enumerate(y)]
 
-            # f = barplot(x, y, title="CPU Usage", maximum=100, width=max(10, cols - 15), height=length(y))
             f = layout(x, y)
-            str = string(f)
-            newheight = 2 + length(collect(eachmatch(r"\n", str)))
 
             clearlinesall()
 
