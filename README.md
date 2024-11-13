@@ -1,4 +1,4 @@
-# TerminalSystemMonitor.jl
+# [TerminalSystemMonitor.jl](https://github.com/AtelierArith/TerminalSystemMonitor.jl)
 
 ## Description
 
@@ -35,8 +35,7 @@ $ julia --version
 
 Clone the repository and navigate to the directory:
 
-```
-sh
+```sh
 $ git clone https://github.com/AtelierArith/TerminalSystemMonitor.jl.git
 $ cd TerminalSystemMonitor.jl
 ```
@@ -108,7 +107,7 @@ julia> using CUDA; using TerminalSystemMonitor: main; main()
 
 ## Why not `htop`?
 
-You might be familiar with the `htop` command, which provides similar functionality. You can use `htop` in Julia as follows:
+You might be familiar with the [htop](https://github.com/htop-dev/htop) command, which provides similar functionality. You can use `htop` in Julia as follows:
 
 ```julia
 julia> using Htop_jll; run(Htop_jll.htop())
@@ -118,10 +117,10 @@ However, `Htop_jll` only supports Unix-based systems. The TerminalSystemMonitor.
 
 ## Why not `bottom`?
 
-You can also use bottom, also known as the btm command:
+You can also use [bottom](https://github.com/ClementTsang/bottom), also known as the `btm` command:
 
 ```
 btm -b
 ```
 
-However, TerminalSystemMonitor.jl offers a cross-platform solution that integrates directly with Julia, providing similar functionality in a familiar environment.
+However, our Julia package [TerminalSystemMonitor.jl](https://github.com/AtelierArith/TerminalSystemMonitor.jl) offers a cross-platform solution that integrates directly with Julia, providing similar functionality in a familiar environment.
