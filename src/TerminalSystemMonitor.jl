@@ -133,17 +133,25 @@ function main(dummyargs...)
         try
             plts = []
             append!(plts, plot_cpu_utilization_rates())
-            append!(plts, plot_cpu_memory_utilization())
-            #if isdefined(Main, :CUDA)
-                append!(plts, plot_gpu_utilization_rates(MLDataDevices.CUDADevice))
-                append!(plts, plot_gpu_memory_utilization(MLDataDevices.CUDADevice))
-            #end
-            # adjust layout
             _, cols = displaysize(stdout)
             n = max(1, cols ÷ 25)
             chunks = collect(Iterators.partition(plts, n))
             f = foldl(/, map(c -> prod(UnicodePlots.panel.(c)), chunks))
 
+            f /= prod(UnicodePlots.panel.(plot_cpu_memory_utilization()))
+
+            if isdefined(Main, :CUDA)
+                cudaplts = []
+                n = max(1, cols ÷ 50)
+                plts1::Vector{Any} = plot_gpu_utilization_rates(MLDataDevices.CUDADevice)
+                plts2::Vector{Any} = plot_gpu_memory_utilization(MLDataDevices.CUDADevice)
+                for i in eachindex(plts1, plts2)
+                    push!(cudaplts, plts1[i])
+                    push!(cudaplts, plts2[i])
+                end
+                gpuchunks = collect(Iterators.partition(cudaplts, n))
+                f /= foldl(/, map(c -> prod(UnicodePlots.panel.(c)), gpuchunks))
+            end
             clearlinesall()
             display(f)
         catch e

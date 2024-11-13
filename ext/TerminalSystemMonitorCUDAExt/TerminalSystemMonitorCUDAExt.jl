@@ -50,7 +50,7 @@ function _plot_gpu_utilization_rates(dev::CUDA.CuDevice)
     mig = uuid(dev) != parent_uuid(dev)
     nvml_dev = CUDA.NVML.Device(uuid(dev); mig)
     x = CUDA.NVML.name(nvml_dev)
-    y = CUDA.NVML.utilization_rates(nvml_dev).compute # percent
+    y = 100 * CUDA.NVML.utilization_rates(nvml_dev).compute
     return barplot([x], [y], maximum = 100, width = max(5, 15))
 end
 
@@ -68,10 +68,6 @@ function _plot_gpu_memory_utilization(dev::CUDA.CuDevice)
     nvml_gpu = CUDA.NVML.Device(parent_uuid(dev))
     nvml_dev = CUDA.NVML.Device(uuid(dev); mig)
     x = CUDA.NVML.name(nvml_dev)
-    device_capability = CUDA.NVML.compute_capability(nvml_dev)
-    #@show CUDA.NVML.power_usage(nvml_dev) # watt
-    y = CUDA.NVML.utilization_rates(nvml_dev).compute # percent
-    #@show CUDA.NVML.temperature(nvml_dev)
     (; total, free, used) = CUDA.NVML.memory_info(nvml_dev)
 
     memorytotal, memorytotal_unit = extract_number_and_unit(Base.format_bytes(total))
