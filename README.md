@@ -2,7 +2,9 @@
 
 ## Description
 
-This Julia package displays CPU and RAM usage information on your computer.
+This Julia package displays CPU and RAM usage information on your computer. If necessary, one can show GPU usage.
+
+![image](https://private-user-images.githubusercontent.com/16760547/385691047-695d64ab-62ba-417e-ac04-e168237b4957.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MzE0OTA1ODcsIm5iZiI6MTczMTQ5MDI4NywicGF0aCI6Ii8xNjc2MDU0Ny8zODU2OTEwNDctNjk1ZDY0YWItNjJiYS00MTdlLWFjMDQtZTE2ODIzN2I0OTU3LnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDExMTMlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQxMTEzVDA5MzEyN1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTA0MjNkZjJjODllZGMxMDMxNDAzZThjOTIyZTY1ZWRjMDVhNzBkNTIyMzY2NWEyNjAyMWE1ZTRkMWJiZGYxMjUmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.4Up5YqmqTmzlQptiPnQhEpJqMys_eND9qajF_NttO7c)
 
 ## Installation
 
@@ -64,27 +66,29 @@ $ julia main.jl
 You will see an output similar to this:
 
 ```bash
-──────────────────────╮╭──────────────────────╮
-│     ┌               ┐││     ┌               ┐│
-│id: 0┤■■■■ 37         ││id: 4┤■■ 23.2         │
-│id: 1┤ 0              ││id: 5┤ 0              │
-│id: 2┤■■■ 29          ││id: 6┤■ 15.2          │
-│id: 3┤ 0              ││id: 7┤ 1              │
-│     └               ┘││     └               ┘│
-╰──────────────────────╯╰──────────────────────╯
 ╭───────────────────────╮╭───────────────────────╮
 │      ┌               ┐││      ┌               ┐│
-│ id: 8┤■ 10.9          ││id: 12┤ 3              │
-│ id: 9┤ 0              ││id: 13┤ 0              │
-│id: 10┤■ 5.9           ││id: 14┤ 2              │
+│id:  0┤■■■ 24          ││id:  4┤■ 10.1          │
+│id:  1┤ 0              ││id:  5┤ 0              │
+│id:  2┤■■ 13.9         ││id:  6┤■ 6             │
+│id:  3┤ 0              ││id:  7┤ 0              │
+│      └               ┘││      └               ┘│
+╰───────────────────────╯╰───────────────────────╯
+╭───────────────────────╮╭───────────────────────╮
+│      ┌               ┐││      ┌               ┐│
+│id:  8┤■ 6             ││id: 12┤ 3              │
+│id:  9┤ 0              ││id: 13┤ 0              │
+│id: 10┤■ 5             ││id: 14┤ 2              │
 │id: 11┤ 0              ││id: 15┤ 0              │
 │      └               ┘││      └               ┘│
 ╰───────────────────────╯╰───────────────────────╯
-╭──────────────────────╮
-│     ┌               ┐│
-│Mem: ┤■■■■■■■■ 29.4   │
-│     └               ┘│
-╰──────────────────────╯
+╭────────────────────────────────────────╮
+│     ┌               ┐                  │
+│Mem: ┤■■■■■■ 58.859    64.0 GiB         │
+│     └               ┘                  │
+│      Load average: 1.81 2.4 2.73       │
+│      Uptime: 0 days, 10:35:59          │
+╰────────────────────────────────────────╯
 ```
 
 Alternatively, you can launch the functionality directly from Julia:
@@ -92,6 +96,15 @@ Alternatively, you can launch the functionality directly from Julia:
 ```julia
 julia> using TerminalSystemMonitor: main; main()
 ```
+
+### Monitoring GPU Usage
+
+Please load `CUDA.jl` package in advance:
+
+```julia
+julia> using CUDA; using TerminalSystemMonitor: main; main()
+```
+
 
 ## Why not `htop`?
 
