@@ -11,13 +11,13 @@ busy_time(info::Sys.CPUinfo) = Int64(
 )
 
 """
-    cpu_percent(period)
+    get_cpu_percent(period)
 
 CPU usage between 0.0 and 100 [percent]
 The idea is borrowed from https://discourse.julialang.org/t/get-cpu-usage/24468/7
 Thank you @fonsp.
 """
-function cpu_percent(period::Real = 1.0)
+function get_cpu_percent(period::Real = 1.0)
 
     info = Sys.cpu_info()
     busies = busy_time.(info)
@@ -59,10 +59,22 @@ function unhidecursor()
     print("\u001B[?25h") # unhide cursor
 end
 
-function layout(x, y)
+function extract_number_and_unit(str::AbstractString)
+	m = match(r"(\d+\.\d+)\s*(\w+)", str)
+	if !isnothing(m)
+		return parse(Float64, m.captures[1]), m.captures[2]
+	else
+		return nothing, nothing
+	end
+end
+
+function plot_cpu_utilization_rates()
+    y = get_cpu_percent()
+    npad = 1+floor(Int, log10(length(y)))
+    x = ["id: $(lpad(i-1, npad))" for (i, _) in enumerate(y)]
+
     ncpus = length(y)
     y = round.(y, digits = 1)
-    _, cols = displaysize(stdout)
 
     plts = []
 
@@ -73,16 +85,19 @@ function layout(x, y)
             barplot(x[c], y[c], maximum = 100, width = max(5, 15), height = length(c)),
         )
     end
-    memoryusageGB = round((Sys.total_memory() - Sys.free_memory()) / 2^30, digits = 1)
-    memorytotGB = Sys.total_memory() / 2 ^ 30
-    (memorytot, memoryusage, memoryunit) = if memorytotGB ≤ 1.0
-        round(1024memorytotGB), 1024memoryusageGB, "MB"
-    else
-        round(memorytotGB), memoryusageGB, "GB"
-    end
+    return plts
+end
+
+function plot_cpu_memory_utilization()
+    memorytot, memoryunit = Sys.total_memory() |> Base.format_bytes |> extract_number_and_unit
+    memoryfree, _ = Sys.free_memory() |> Base.format_bytes |> extract_number_and_unit
+    memoryusage = memorytot - memoryfree
+    memorytot = round(memorytot)
 
     seconds = floor(Int, Sys.uptime())
     datetime = DateTime(1970) + Second(seconds)
+
+    plts = []
     push!(
         plts,
         barplot(
@@ -103,11 +118,6 @@ function layout(x, y)
         ),
     )
 
-    n = max(1, cols ÷ 25)
-    chunks = collect(Iterators.partition(plts, n))
-
-
-    return foldl(/, map(c -> prod(UnicodePlots.panel.(c)), chunks))
 end
 
 function main(dummyargs...)
@@ -115,14 +125,17 @@ function main(dummyargs...)
 
     while true
         try
-            y = cpu_percent()
-            npad = 1+floor(Int, log10(length(y)))
-            x = ["id: $(lpad(i-1, npad))" for (i, _) in enumerate(y)]
+            plts = []
+            append!(plts, plot_cpu_utilization_rates())
+            append!(plts, plot_cpu_memory_utilization())
 
-            f = layout(x, y)
+            # adjust layout
+            _, cols = displaysize(stdout)
+            n = max(1, cols ÷ 25)
+            chunks = collect(Iterators.partition(plts, n))
+            f = foldl(/, map(c -> prod(UnicodePlots.panel.(c)), chunks))
 
             clearlinesall()
-
             display(f)
         catch e
             unhidecursor() # unhide cursor
