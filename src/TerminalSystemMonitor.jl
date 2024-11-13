@@ -93,11 +93,11 @@ function plot_cpu_utilization_rates()
 end
 
 function plot_cpu_memory_utilization()
-    memorytot, memoryunit =
+    memorytotal, memorytotal_unit =
         Sys.total_memory() |> Base.format_bytes |> extract_number_and_unit
     memoryfree, _ = Sys.free_memory() |> Base.format_bytes |> extract_number_and_unit
-    memoryusage = memorytot - memoryfree
-    memorytot = round(memorytot)
+    memoryusage = memorytotal - memoryfree
+    memorytotal = round(memorytotal)
 
     seconds = floor(Int, Sys.uptime())
     datetime = DateTime(1970) + Second(seconds)
@@ -118,8 +118,8 @@ function plot_cpu_memory_utilization()
                 '\n',
             ),
             # Adds a space for better styling
-            name = " $(memorytot) $(memoryunit)",
-            maximum = memorytot,
+            name = " $(memorytotal) $(memorytotal_unit)",
+            maximum = memorytotal,
             width = max(5, 15),
         ),
     )
@@ -134,10 +134,10 @@ function main(dummyargs...)
             plts = []
             append!(plts, plot_cpu_utilization_rates())
             append!(plts, plot_cpu_memory_utilization())
-            if isdefined(Main, :CUDA)
+            #if isdefined(Main, :CUDA)
                 append!(plts, plot_gpu_utilization_rates(MLDataDevices.CUDADevice))
                 append!(plts, plot_gpu_memory_utilization(MLDataDevices.CUDADevice))
-            end
+            #end
             # adjust layout
             _, cols = displaysize(stdout)
             n = max(1, cols ÷ 25)

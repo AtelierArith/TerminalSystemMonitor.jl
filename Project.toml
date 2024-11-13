@@ -13,7 +13,7 @@ UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 
 [extensions]
-TerminalSystemMonitorCUDAExt = ["CUDA"]
+TerminalSystemMonitorCUDAExt = "CUDA"
 
 [compat]
 CUDA = "5.5.2"

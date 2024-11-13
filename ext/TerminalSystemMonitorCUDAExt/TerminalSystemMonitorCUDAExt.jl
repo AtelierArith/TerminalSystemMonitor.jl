@@ -1,6 +1,7 @@
 module TerminalSystemMonitorCUDAExt
 
 using CUDA
+using MLDataDevices: CUDADevice
 using UnicodePlots: barplot
 import TerminalSystemMonitor
 using TerminalSystemMonitor: extract_number_and_unit
@@ -45,7 +46,7 @@ using TerminalSystemMonitor: extract_number_and_unit
    └41s────────────────30s──────────────────20s─────────────────10s─────────────────0s┘
 """
 
-function TerminalSystemMonitor.plot_gpu_utilization_rates(dev::CUDA.CuDevice)
+function _plot_gpu_utilization_rates(dev::CUDA.CuDevice)
     mig = uuid(dev) != parent_uuid(dev)
     nvml_dev = CUDA.NVML.Device(uuid(dev); mig)
     x = CUDA.NVML.name(nvml_dev)
@@ -53,7 +54,7 @@ function TerminalSystemMonitor.plot_gpu_utilization_rates(dev::CUDA.CuDevice)
     return barplot([x], [y], maximum = 100, width = max(5, 15))
 end
 
-function TerminalSystemMonitor.plot_gpu_utilization_rates(::Type{MLDataDevices.CUDADevice})
+function TerminalSystemMonitor.plot_gpu_utilization_rates(::Type{CUDADevice})
     plts = []
     for dev in CUDA.devices()
         push!(plts, _plot_gpu_utilization_rates(dev))
@@ -61,7 +62,7 @@ function TerminalSystemMonitor.plot_gpu_utilization_rates(::Type{MLDataDevices.C
     return plts
 end
 
-function TerminalSystemMonitor.plot_gpu_memory_utilization(dev::CUDA.CuDevice)
+function _plot_gpu_memory_utilization(dev::CUDA.CuDevice)
     device_name = CUDA.name(dev)
     mig = uuid(dev) != parent_uuid(dev)
     nvml_gpu = CUDA.NVML.Device(parent_uuid(dev))
@@ -73,8 +74,8 @@ function TerminalSystemMonitor.plot_gpu_memory_utilization(dev::CUDA.CuDevice)
     #@show CUDA.NVML.temperature(nvml_dev)
     (; total, free, used) = CUDA.NVML.memory_info(nvml_dev)
 
-    memorytot, memorytotal_unit = eextract_number_and_unit(Base.format_bytes(total))
-    memoryusage, memoryusage_unit = eextract_number_and_unit(Base.format_bytes(used))
+    memorytotal, memorytotal_unit = extract_number_and_unit(Base.format_bytes(total))
+    memoryusage, memoryusage_unit = extract_number_and_unit(Base.format_bytes(used))
 
     if memorytotal_unit == "GiB"
         # convert to MB
@@ -93,13 +94,13 @@ function TerminalSystemMonitor.plot_gpu_memory_utilization(dev::CUDA.CuDevice)
         [memoryusage],
         xlabel = device_name,
         # Adds a space for better styling
-        name = " $(memorytot) $(memoryunit)",
-        maximum = memorytot,
+        name = " $(memorytotal) $(memorytotal_unit)",
+        maximum = memorytotal,
         width = max(5, 15),
     )
 end
 
-function TerminalSystemMonitor.plot_gpu_memory_utilization(::Type{MLDataDevices.CUDADevice})
+function TerminalSystemMonitor.plot_gpu_memory_utilization(::Type{CUDADevice})
     plts = []
     for dev in CUDA.devices()
         push!(plts, _plot_gpu_memory_utilization(dev))
