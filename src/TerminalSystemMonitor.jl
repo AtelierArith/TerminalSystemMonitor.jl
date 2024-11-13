@@ -3,6 +3,10 @@ module TerminalSystemMonitor
 using Dates: Dates, Day, DateTime, Second
 using UnicodePlots
 import Term # this is required by UnicodePlots.panel
+using MLDataDevices: MLDataDevices
+
+function plot_gpu_utilization_rates end
+function plot_gpu_memory_utilization end
 
 idle_time(info::Sys.CPUinfo) = Int64(info.cpu_times!idle)
 
@@ -60,17 +64,17 @@ function unhidecursor()
 end
 
 function extract_number_and_unit(str::AbstractString)
-	m = match(r"(\d+\.\d+)\s*(\w+)", str)
-	if !isnothing(m)
-		return parse(Float64, m.captures[1]), m.captures[2]
-	else
-		return nothing, nothing
-	end
+    m = match(r"(\d+\.\d+)\s*(\w+)", str)
+    if !isnothing(m)
+        return parse(Float64, m.captures[1]), m.captures[2]
+    else
+        return nothing, nothing
+    end
 end
 
 function plot_cpu_utilization_rates()
     y = get_cpu_percent()
-    npad = 1+floor(Int, log10(length(y)))
+    npad = 1 + floor(Int, log10(length(y)))
     x = ["id: $(lpad(i-1, npad))" for (i, _) in enumerate(y)]
 
     ncpus = length(y)
@@ -89,10 +93,11 @@ function plot_cpu_utilization_rates()
 end
 
 function plot_cpu_memory_utilization()
-    memorytot, memoryunit = Sys.total_memory() |> Base.format_bytes |> extract_number_and_unit
+    memorytotal, memorytotal_unit =
+        Sys.total_memory() |> Base.format_bytes |> extract_number_and_unit
     memoryfree, _ = Sys.free_memory() |> Base.format_bytes |> extract_number_and_unit
-    memoryusage = memorytot - memoryfree
-    memorytot = round(memorytot)
+    memoryusage = memorytotal - memoryfree
+    memorytotal = round(memorytotal)
 
     seconds = floor(Int, Sys.uptime())
     datetime = DateTime(1970) + Second(seconds)
@@ -103,17 +108,18 @@ function plot_cpu_memory_utilization()
         barplot(
             ["Mem: "],
             [memoryusage],
-            xlabel= join(
+            xlabel = join(
                 [
-                    "Load average: " * join(string.(round.(Sys.loadavg(), digits=2)),' '),
+                    "Load average: " *
+                    join(string.(round.(Sys.loadavg(), digits = 2)), ' '),
                     # Adds spaces for better styling
                     "      Uptime: $(max(Day(0), Day(datetime)-Day(1))), $(Dates.format(datetime, "HH:MM:SS"))",
                 ],
                 '\n',
             ),
             # Adds a space for better styling
-            name=" $(memorytot) $(memoryunit)",
-            maximum = Sys.total_memory() / 2^30,
+            name = " $(memorytotal) $(memorytotal_unit)",
+            maximum = memorytotal,
             width = max(5, 15),
         ),
     )
@@ -127,14 +133,25 @@ function main(dummyargs...)
         try
             plts = []
             append!(plts, plot_cpu_utilization_rates())
-            append!(plts, plot_cpu_memory_utilization())
-
-            # adjust layout
             _, cols = displaysize(stdout)
             n = max(1, cols ÷ 25)
             chunks = collect(Iterators.partition(plts, n))
             f = foldl(/, map(c -> prod(UnicodePlots.panel.(c)), chunks))
 
+            f /= prod(UnicodePlots.panel.(plot_cpu_memory_utilization()))
+
+            if isdefined(Main, :CUDA)
+                cudaplts = []
+                n = max(1, cols ÷ 50)
+                plts1::Vector{Any} = plot_gpu_utilization_rates(MLDataDevices.CUDADevice)
+                plts2::Vector{Any} = plot_gpu_memory_utilization(MLDataDevices.CUDADevice)
+                for i in eachindex(plts1, plts2)
+                    push!(cudaplts, plts1[i])
+                    push!(cudaplts, plts2[i])
+                end
+                gpuchunks = collect(Iterators.partition(cudaplts, n))
+                f /= foldl(/, map(c -> prod(UnicodePlots.panel.(c)), gpuchunks))
+            end
             clearlinesall()
             display(f)
         catch e
