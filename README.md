@@ -59,7 +59,7 @@ Run the program using the following commands:
 ```sh
 $ ls
 Project.toml  README.md     main.jl       src
-$ julia main.jl
+$ julia --project main.jl
 ```
 
 You will see an output similar to this:
@@ -93,6 +93,7 @@ You will see an output similar to this:
 Alternatively, you can launch the functionality directly from Julia:
 
 ```julia
+$ julia --project
 julia> using TerminalSystemMonitor: main; main()
 ```
 
@@ -104,10 +105,9 @@ Please load `CUDA.jl` package in advance:
 julia> using CUDA; using TerminalSystemMonitor: main; main()
 ```
 
-
 ## Why not `htop`?
 
-You might be familiar with the [htop](https://github.com/htop-dev/htop) command, which provides similar functionality. You can use `htop` in Julia as follows:
+You might be familiar with the [htop-dev/htop](https://github.com/htop-dev/htop), which provides similar functionality. You can use the `htop` command in Julia as follows:
 
 ```julia
 julia> using Htop_jll; run(Htop_jll.htop())
@@ -117,10 +117,14 @@ However, `Htop_jll` only supports Unix-based systems. The TerminalSystemMonitor.
 
 ## Why not `bottom`?
 
-You can also use [bottom](https://github.com/ClementTsang/bottom), also known as the `btm` command:
+You can also use [ClementTsang/bottom](https://github.com/ClementTsang/bottom), also known as the `btm` command:
 
 ```
 btm -b
 ```
 
 However, our Julia package [TerminalSystemMonitor.jl](https://github.com/AtelierArith/TerminalSystemMonitor.jl) offers a cross-platform solution that integrates directly with Julia, providing similar functionality in a familiar environment.
+
+## Can I visualize GPU Apple Silicon processors?
+
+Technically yes, however, you may want to chekcout [context-labs/mactop](https://github.com/context-labs/mactop) or [tlkh/asitop](https://github.com/tlkh/asitop) to start instantly. To get information regarding GPU, we need to call `powermetrics` command which requires root privilege. If you are familiar with Rust language, [vladkens/macmon](https://github.com/vladkens/macmon) is what you need. It states "sudoless performance monitoring for Apple Silicon processors".
