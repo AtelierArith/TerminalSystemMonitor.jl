@@ -46,18 +46,19 @@ using TerminalSystemMonitor: extract_number_and_unit
    └41s────────────────30s──────────────────20s─────────────────10s─────────────────0s┘
 """
 
-function _plot_gpu_utilization_rates(dev::CUDA.CuDevice)
+function _plot_gpu_utilization_rates(gpu_id, dev::CUDA.CuDevice)
     mig = uuid(dev) != parent_uuid(dev)
     nvml_dev = CUDA.NVML.Device(uuid(dev); mig)
-    x = CUDA.NVML.name(nvml_dev)
+    x = string(gpu_id)
     y = 100 * CUDA.NVML.utilization_rates(nvml_dev).compute
     return barplot([x], [y], maximum = 100, width = max(5, 15))
 end
 
 function TerminalSystemMonitor.plot_gpu_utilization_rates(::Type{CUDADevice})
     plts = []
-    for dev in CUDA.devices()
-        push!(plts, _plot_gpu_utilization_rates(dev))
+    for (jli, dev) in enumerate(CUDA.devices())
+        gpu_id = jli - 1 # from 1-based to 0-based index
+        push!(plts, _plot_gpu_utilization_rates(gpu_id, dev))
     end
     return plts
 end

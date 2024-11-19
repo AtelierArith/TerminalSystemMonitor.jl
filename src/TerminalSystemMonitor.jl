@@ -140,7 +140,7 @@ function main(dummyargs...)
 
             f /= prod(UnicodePlots.panel.(plot_cpu_memory_utilization()))
 
-            if isdefined(Main, :CUDA)
+            if isdefined(Main, :CUDA) && getproperty(getproperty(Main, :CUDA), :functional)()
                 cudaplts = []
                 n = max(1, cols ÷ 50)
                 plts1::Vector{Any} = plot_gpu_utilization_rates(MLDataDevices.CUDADevice)
