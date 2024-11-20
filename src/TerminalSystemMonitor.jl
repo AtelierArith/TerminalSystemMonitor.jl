@@ -73,12 +73,12 @@ function extract_number_and_unit(str::AbstractString)
 end
 
 function plot_cpu_utilization_rates()
-    y = get_cpu_percent()
-    npad = 1 + floor(Int, log10(length(y)))
-    x = ["id: $(lpad(i-1, npad))" for (i, _) in enumerate(y)]
+    ys = get_cpu_percent()
+    npad = 1 + floor(Int, log10(length(ys)))
+    xs = ["id: $(lpad(i-1, npad))" for (i, _) in enumerate(ys)]
 
-    ncpus = length(y)
-    y = round.(y, digits = 1)
+    ncpus = length(ys)
+    ys = round.(ys, digits = 1)
 
     plts = []
 
@@ -86,7 +86,7 @@ function plot_cpu_utilization_rates()
     for c in chunks
         push!(
             plts,
-            barplot(x[c], y[c], maximum = 100, width = max(5, 15), height = length(c)),
+            barplot(xs[c], ys[c], maximum = 100, width = 15, height = length(c)),
         )
     end
     return plts
@@ -120,7 +120,7 @@ function plot_cpu_memory_utilization()
             # Adds a space for better styling
             name = " $(memorytotal) $(memorytotal_unit)",
             maximum = memorytotal,
-            width = max(5, 15),
+            width = 30,
         ),
     )
 
@@ -140,7 +140,8 @@ function main(dummyargs...)
 
             f /= prod(UnicodePlots.panel.(plot_cpu_memory_utilization()))
 
-            if isdefined(Main, :CUDA) && getproperty(getproperty(Main, :CUDA), :functional)()
+            if isdefined(Main, :CUDA) &&
+               getproperty(getproperty(Main, :CUDA), :functional)()
                 cudaplts = []
                 n = max(1, cols ÷ 50)
                 plts1::Vector{Any} = plot_gpu_utilization_rates(MLDataDevices.CUDADevice)

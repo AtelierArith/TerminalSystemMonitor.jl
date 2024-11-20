@@ -56,8 +56,11 @@ end
 
 function TerminalSystemMonitor.plot_gpu_utilization_rates(::Type{CUDADevice})
     plts = []
-    for (jli, dev) in enumerate(CUDA.devices())
-        gpu_id = jli - 1 # from 1-based to 0-based index
+    devices = collect(CUDA.devices())
+    npad = 1 + floor(Int, log10(length(devices)))
+    xs = ["id: $(lpad(i-1, npad))" for i = 1:length(devices)]
+
+    for (gpu_id, dev) in zip(xs, devices)
         push!(plts, _plot_gpu_utilization_rates(gpu_id, dev))
     end
     return plts
