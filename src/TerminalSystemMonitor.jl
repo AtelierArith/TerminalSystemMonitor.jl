@@ -66,7 +66,7 @@ end
 function extract_number_and_unit(str::AbstractString)
     m = match(r"(\d+\.\d+)\s*(\w+)", str)
     if !isnothing(m)
-        return parse(Float64, m.captures[1]), m.captures[2]
+        return parse(Float64, m.captures[1]::SubString), m.captures[2]::SubString
     else
         return nothing, nothing
     end
@@ -84,10 +84,7 @@ function plot_cpu_utilization_rates()
 
     chunks = collect.(collect(Iterators.partition((1:ncpus), 4)))
     for c in chunks
-        push!(
-            plts,
-            barplot(xs[c], ys[c], maximum = 100, width = 15, height = length(c)),
-        )
+        push!(plts, barplot(xs[c], ys[c], maximum = 100, width = 15, height = length(c)))
     end
     return plts
 end
@@ -96,6 +93,9 @@ function plot_cpu_memory_utilization()
     memorytotal, memorytotal_unit =
         Sys.total_memory() |> Base.format_bytes |> extract_number_and_unit
     memoryfree, _ = Sys.free_memory() |> Base.format_bytes |> extract_number_and_unit
+    if isnothing(memorytotal) || isnothing(memoryfree)
+        return []
+    end
     memoryusage = memorytotal - memoryfree
     memorytotal = round(memorytotal)
 
