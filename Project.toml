@@ -17,7 +17,6 @@ TerminalSystemMonitorCUDAExt = "CUDA"
 
 [compat]
 Aqua = "0.8.9"
-CUDA = "5.5.2"
 Dates = "1"
 JET = "0.9.12"
 MLDataDevices = "1.5.3"
@@ -32,6 +31,7 @@ Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 ReTestItems = "817f1d60-ba6b-4fd5-9520-3cf149f6a823"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 
 [targets]
-test = ["Aqua", "JET", "ReTestItems", "Test"]
+test = ["Aqua", "JET", "ReTestItems", "Test", "CUDA"]

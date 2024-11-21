@@ -6,46 +6,6 @@ using UnicodePlots: barplot
 import TerminalSystemMonitor
 using TerminalSystemMonitor: extract_number_and_unit
 
-"""
- Device 0 [NVIDIA GeForce GTX 1080 Ti] PCIe GEN 1@16x RX: 0.000 KiB/s TX: 0.000 KiB/s
- GPU 139MHz  MEM 405MHz  TEMP  39°C FAN   0% POW  11 / 280 W
- GPU[                                  0%] MEM[                     0.096Gi/11.000Gi]
-
- Device 1 [NVIDIA GeForce GTX 1080 Ti] PCIe GEN 1@16x RX: 0.000 KiB/s TX: 0.000 KiB/s
- GPU 139MHz  MEM 405MHz  TEMP  36°C FAN   0% POW   9 / 280 W
- GPU[                                  0%] MEM[                     0.107Gi/11.000Gi]
-   ┌──────────────────────────────────────────────────────────────────────────────────┐
-100│GPU0 %                                                                            │
-   │GPU0 mem%                                                                         │
-   │                                                                                  │
- 75│                                                                                  │
-   │                                                                                  │
-   │                                                                                  │
- 50│                                                                                  │
-   │                                                                                  │
-   │                                                                                  │
- 25│                                                                                  │
-   │                                                                                  │
-   │                                                                                  │
-  0│──────────────────────────────────────────────────────────────────────────────────│
-   └41s────────────────30s──────────────────20s─────────────────10s─────────────────0s┘
-   ┌──────────────────────────────────────────────────────────────────────────────────┐
-100│GPU1 %                                                                            │
-   │GPU1 mem%                                                                         │
-   │                                                                                  │
- 75│                                                                                  │
-   │                                                                                  │
-   │                                                                                  │
- 50│                                                                                  │
-   │                                                                                  │
-   │                                                                                  │
- 25│                                                                                  │
-   │                                                                                  │
-   │                                                                                  │
-  0│──────────────────────────────────────────────────────────────────────────────────│
-   └41s────────────────30s──────────────────20s─────────────────10s─────────────────0s┘
-"""
-
 function _plot_gpu_utilization_rates(gpu_id, dev::CUDA.CuDevice)
     mig = uuid(dev) != parent_uuid(dev)
     nvml_dev = CUDA.NVML.Device(uuid(dev); mig)
