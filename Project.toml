@@ -9,29 +9,30 @@ MLDataDevices = "7e8f7934-dd98-4c1a-8fe8-92b47a384d40"
 Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
 UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
 
-[weakdeps]
-CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-
 [extensions]
 TerminalSystemMonitorCUDAExt = "CUDA"
 
+[weakdeps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+
 [compat]
 Aqua = "0.8.9"
+CUDA = "5.5.2"
 Dates = "1"
 JET = "0.9.12"
 MLDataDevices = "1.5.3"
 ReTestItems = "1.29.0"
 Term = "2.0.6"
-Test = "1.11.0"
+Test = "1"
 UnicodePlots = "3.7.0"
 julia = "1.10"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 ReTestItems = "817f1d60-ba6b-4fd5-9520-3cf149f6a823"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 
 [targets]
 test = ["Aqua", "JET", "ReTestItems", "Test", "CUDA"]

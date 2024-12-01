@@ -3,10 +3,17 @@ module TerminalSystemMonitor
 using Dates: Dates, Day, DateTime, Second
 using UnicodePlots
 import Term # this is required by UnicodePlots.panel
-using MLDataDevices: MLDataDevices
+using MLDataDevices: MLDataDevices, CUDADevice
 
-function plot_gpu_utilization_rates end
-function plot_gpu_memory_utilization end
+# Define dummy method to avoid getting errors on testing using JET.jl
+function plot_gpu_utilization_rates(::Type{CUDADevice}, dummyargs=nothing)::Vector{Any} 
+    Any[]
+end
+
+# Define dummy method to avoid getting errors on testing using JET.jl
+function plot_gpu_memory_utilization(::Type{CUDADevice}, dummyargs=nothing)::Vector{Any} 
+    Any[]
+end
 
 idle_time(info::Sys.CPUinfo) = Int64(info.cpu_times!idle)
 
@@ -144,8 +151,8 @@ function main(dummyargs...)
                getproperty(getproperty(Main, :CUDA), :functional)()
                 cudaplts = []
                 n = max(1, cols ÷ 50)
-                plts1::Vector{Any} = plot_gpu_utilization_rates(MLDataDevices.CUDADevice)
-                plts2::Vector{Any} = plot_gpu_memory_utilization(MLDataDevices.CUDADevice)
+                plts1 = plot_gpu_utilization_rates(MLDataDevices.CUDADevice)::Vector{Any}
+                plts2 = plot_gpu_memory_utilization(MLDataDevices.CUDADevice)::Vector{Any}
                 for i in eachindex(plts1, plts2)
                     push!(cudaplts, plts1[i])
                     push!(cudaplts, plts2[i])
