@@ -6,12 +6,12 @@ import Term # this is required by UnicodePlots.panel
 using MLDataDevices: MLDataDevices, CUDADevice
 
 # Define dummy method to avoid getting errors on testing using JET.jl
-function plot_gpu_utilization_rates(::Type{CUDADevice}, dummyargs=nothing)::Vector{Any} 
+function plot_gpu_utilization_rates(::Type{CUDADevice}, dummyargs=nothing)::Vector{Any}
     Any[]
 end
 
 # Define dummy method to avoid getting errors on testing using JET.jl
-function plot_gpu_memory_utilization(::Type{CUDADevice}, dummyargs=nothing)::Vector{Any} 
+function plot_gpu_memory_utilization(::Type{CUDADevice}, dummyargs=nothing)::Vector{Any}
     Any[]
 end
 
@@ -25,7 +25,9 @@ busy_time(info::Sys.CPUinfo) = Int64(
     get_cpu_percent(period)
 
 CPU usage between 0.0 and 100 [percent]
+
 The idea is borrowed from https://discourse.julialang.org/t/get-cpu-usage/24468/7
+
 Thank you @fonsp.
 """
 function get_cpu_percent(period::Real = 1.0)

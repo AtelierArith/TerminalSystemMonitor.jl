@@ -1,5 +1,7 @@
 # [TerminalSystemMonitor.jl](https://github.com/AtelierArith/TerminalSystemMonitor.jl)
 
+[![Build Status](https://github.com/AtelierArith/TerminalSystemMonitor.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/AtelierArith/TerminalSystemMonitor.jl/actions/workflows/CI.yml?query=branch%3Amain) [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://AtelierArith.github.io/TerminalSystemMonitor.jl/stable/) [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://AtelierArith.github.io/TerminalSystemMonitor.jl/dev/)
+
 ## Description
 
 This Julia package displays CPU and RAM usage information on your computer. If necessary, one can show GPU usage.
