@@ -96,7 +96,7 @@ Alternatively, you can launch the functionality directly from Julia:
 
 ```julia
 $ julia --project
-julia> using TerminalSystemMonitor: main; main()
+julia> using TerminalSystemMonitor; monitor()
 ```
 
 ### Monitoring GPU Usage
@@ -104,7 +104,7 @@ julia> using TerminalSystemMonitor: main; main()
 Please load `CUDA.jl` package in advance:
 
 ```julia
-julia> using CUDA; using TerminalSystemMonitor: main; main()
+julia> using CUDA; using TerminalSystemMonitor; monitor()
 ```
 
 ## Why not `htop`?
@@ -117,15 +117,21 @@ julia> using Htop_jll; run(Htop_jll.htop())
 
 However, `Htop_jll` only supports Unix-based systems. The TerminalSystemMonitor.jl package also supports Windows as long as Term.jl and UnicodePlots.jl are available on the platform.
 
-## Why not `bottom`?
+## Why not `btm`?
 
 You can also use [ClementTsang/bottom](https://github.com/ClementTsang/bottom), also known as the `btm` command:
 
-```
-btm -b
+```sh
+$ btm -b
 ```
 
-However, our Julia package [TerminalSystemMonitor.jl](https://github.com/AtelierArith/TerminalSystemMonitor.jl) offers a cross-platform solution that integrates directly with Julia, providing similar functionality in a familiar environment.
+We could use `bottom_jll` instead:
+
+```julia
+julia> using bottom_jll; run(`$(btm()) --basic`)
+```
+
+Our Julia package [TerminalSystemMonitor.jl](https://github.com/AtelierArith/TerminalSystemMonitor.jl) offers a cross-platform solution and adopts responsive design; chaging layout nicely based on your terminal size.
 
 ## Can I visualize GPU Apple Silicon processors?
 
