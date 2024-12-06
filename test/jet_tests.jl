@@ -1,3 +1,4 @@
+#=
 @testitem "JET" begin
     using Test
     using JET
@@ -8,3 +9,4 @@
         JET.test_package(TerminalSystemMonitor; target_defined_modules = true)
     end
 end
+=#

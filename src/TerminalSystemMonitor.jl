@@ -5,15 +5,9 @@ using UnicodePlots
 import Term # this is required by UnicodePlots.panel
 using MLDataDevices: MLDataDevices, CUDADevice
 
-# Define dummy method to avoid getting errors on testing using JET.jl
-function plot_gpu_utilization_rates(::Type{CUDADevice}, dummyargs=nothing)::Vector{Any}
-    Any[]
-end
-
-# Define dummy method to avoid getting errors on testing using JET.jl
-function plot_gpu_memory_utilization(::Type{CUDADevice}, dummyargs=nothing)::Vector{Any}
-    Any[]
-end
+# These function will be defined in Package extensions
+function plot_gpu_utilization_rates end
+function plot_gpu_memory_utilization end
 
 idle_time(info::Sys.CPUinfo) = Int64(info.cpu_times!idle)
 
