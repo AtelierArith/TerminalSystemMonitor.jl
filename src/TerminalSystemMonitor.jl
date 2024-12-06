@@ -5,6 +5,8 @@ using UnicodePlots
 import Term # this is required by UnicodePlots.panel
 using MLDataDevices: MLDataDevices, CUDADevice
 
+export monitor # entrypoint from REPL
+
 # These function will be defined in Package extensions
 function plot_gpu_utilization_rates end
 function plot_gpu_memory_utilization end
@@ -127,6 +129,10 @@ function plot_cpu_memory_utilization()
         ),
     )
 
+end
+
+function monitor(args...)
+    main(args...)
 end
 
 function main(dummyargs...)
