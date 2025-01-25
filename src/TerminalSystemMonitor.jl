@@ -164,7 +164,7 @@ function main(dummyargs...)
                 f /= foldl(/, map(c -> prod(UnicodePlots.panel.(c)), gpuchunks))
             end
 
-            if isdefined(Main, :Metal)
+            if isdefined(Main, :Metal) && Sys.ARCH == :aarch64
                 metalplts = []
                 n = max(1, cols ÷ 50)
                 plts1 = plot_cpu_utilization_rates(MetalDevice)::Vector{Any}

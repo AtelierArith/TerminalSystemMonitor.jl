@@ -11,7 +11,7 @@ function _plot_gpu_utilization_rates(gpu_id, dev::CUDA.CuDevice)
     nvml_dev = CUDA.NVML.Device(uuid(dev); mig)
     x = string(gpu_id)
     y = 100 * CUDA.NVML.utilization_rates(nvml_dev).compute
-    return barplot([x], [y], maximum = 100, width = max(5, 15))
+    return barplot([x], [y], maximum = 100, width = 15)
 end
 
 function TerminalSystemMonitor.plot_gpu_utilization_rates(::Type{CUDADevice})
@@ -56,7 +56,7 @@ function _plot_gpu_memory_utilization(dev::CUDA.CuDevice)
         # Adds a space for better styling
         name = " $(memorytotal) $(memorytotal_unit)",
         maximum = memorytotal,
-        width = max(5, 15),
+        width = 15,
     )
 end
 
