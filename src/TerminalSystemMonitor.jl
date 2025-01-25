@@ -3,11 +3,12 @@ module TerminalSystemMonitor
 using Dates: Dates, Day, DateTime, Second
 using UnicodePlots
 import Term # this is required by UnicodePlots.panel
-using MLDataDevices: MLDataDevices, CUDADevice
+using MLDataDevices: MLDataDevices, CUDADevice, CPUDevice, MetalDevice
 
 export monitor # entrypoint from REPL
 
 # These function will be defined in Package extensions
+function plot_cpu_utilization_rates end
 function plot_gpu_utilization_rates end
 function plot_gpu_memory_utilization end
 
@@ -77,7 +78,7 @@ function extract_number_and_unit(str::AbstractString)
     end
 end
 
-function plot_cpu_utilization_rates()
+function plot_cpu_utilization_rates(::Type{CPUDevice})
     ys = get_cpu_percent()
     npad = 1 + floor(Int, log10(length(ys)))
     xs = ["id: $(lpad(i-1, npad))" for (i, _) in enumerate(ys)]
@@ -94,7 +95,7 @@ function plot_cpu_utilization_rates()
     return plts
 end
 
-function plot_cpu_memory_utilization()
+function plot_cpu_memory_utilization(::Type{CPUDevice})
     memorytotal, memorytotal_unit =
         Sys.total_memory() |> Base.format_bytes |> extract_number_and_unit
     memoryfree, _ = Sys.free_memory() |> Base.format_bytes |> extract_number_and_unit
@@ -141,26 +142,41 @@ function main(dummyargs...)
     while true
         try
             plts = []
-            append!(plts, plot_cpu_utilization_rates())
+            append!(plts, plot_cpu_utilization_rates(CPUDevice))
             _, cols = displaysize(stdout)
             n = max(1, cols ÷ 25)
             chunks = collect(Iterators.partition(plts, n))
             f = foldl(/, map(c -> prod(UnicodePlots.panel.(c)), chunks))
 
-            f /= prod(UnicodePlots.panel.(plot_cpu_memory_utilization()))
+            f /= prod(UnicodePlots.panel.(plot_cpu_memory_utilization(CPUDevice)))
 
             if isdefined(Main, :CUDA) &&
                getproperty(getproperty(Main, :CUDA), :functional)()
                 cudaplts = []
                 n = max(1, cols ÷ 50)
-                plts1 = plot_gpu_utilization_rates(MLDataDevices.CUDADevice)::Vector{Any}
-                plts2 = plot_gpu_memory_utilization(MLDataDevices.CUDADevice)::Vector{Any}
+                plts1 = plot_gpu_utilization_rates(CUDADevice)::Vector{Any}
+                plts2 = plot_gpu_memory_utilization(CUDADevice)::Vector{Any}
                 for i in eachindex(plts1, plts2)
                     push!(cudaplts, plts1[i])
                     push!(cudaplts, plts2[i])
                 end
                 gpuchunks = collect(Iterators.partition(cudaplts, n))
                 f /= foldl(/, map(c -> prod(UnicodePlots.panel.(c)), gpuchunks))
+            end
+
+            if isdefined(Main, :Metal)
+                metalplts = []
+                n = max(1, cols ÷ 50)
+                plts1 = plot_cpu_utilization_rates(MetalDevice)::Vector{Any}
+                plts2 = plot_gpu_utilization_rates(MetalDevice)::Vector{Any}
+                for i in eachindex(plts1)
+                    push!(metalplts, plts1[i])
+                end
+                for i in eachindex(plts2)
+                    push!(metalplts, plts2[i])
+                end
+                metalchunks = collect(Iterators.partition(metalplts, n))
+                f /= foldl(/, map(c -> prod(UnicodePlots.panel.(c)), metalchunks))
             end
             clearlinesall()
             display(f)
