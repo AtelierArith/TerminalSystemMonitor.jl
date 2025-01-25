@@ -141,17 +141,22 @@ function main(dummyargs...)
 
     while true
         try
-            plts = []
-            append!(plts, plot_cpu_utilization_rates(CPUDevice))
             _, cols = displaysize(stdout)
-            n = max(1, cols ÷ 25)
-            chunks = collect(Iterators.partition(plts, n))
-            f = foldl(/, map(c -> prod(UnicodePlots.panel.(c)), chunks))
+            t1 = @async begin
+                plts = []
+                append!(plts, plot_cpu_utilization_rates(CPUDevice))
+                n = max(1, cols ÷ 25)
+                chunks = collect(Iterators.partition(plts, n))
+                f = foldl(/, map(c -> prod(UnicodePlots.panel.(c)), chunks))
 
-            f /= prod(UnicodePlots.panel.(plot_cpu_memory_utilization(CPUDevice)))
+                f /= prod(UnicodePlots.panel.(plot_cpu_memory_utilization(CPUDevice)))
+                f
+            end
 
             if isdefined(Main, :CUDA) &&
                getproperty(getproperty(Main, :CUDA), :functional)()
+                wait(t1)
+                f = fetch(t1)
                 cudaplts = []
                 n = max(1, cols ÷ 50)
                 plts1 = plot_gpu_utilization_rates(CUDADevice)::Vector{Any}
@@ -162,13 +167,16 @@ function main(dummyargs...)
                 end
                 gpuchunks = collect(Iterators.partition(cudaplts, n))
                 f /= foldl(/, map(c -> prod(UnicodePlots.panel.(c)), gpuchunks))
-            end
-
-            if isdefined(Main, :Metal) && Sys.ARCH == :aarch64
+            elseif isdefined(Main, :Metal) && Sys.isapple() && Sys.ARCH == :aarch64
                 metalplts = []
                 n = max(1, cols ÷ 50)
-                plts1 = plot_cpu_utilization_rates(MetalDevice)::Vector{Any}
-                plts2 = plot_gpu_utilization_rates(MetalDevice)::Vector{Any}
+                t2 = @async plot_cpu_utilization_rates(MetalDevice)
+                t3 = @async plot_gpu_utilization_rates(MetalDevice)
+                wait(t1)
+                wait(t2)
+                wait(t3)
+                plts1 = fetch(t2)
+                plts2 = fetch(t3)
                 for i in eachindex(plts1)
                     push!(metalplts, plts1[i])
                 end
@@ -177,12 +185,15 @@ function main(dummyargs...)
                 end
                 metalchunks = collect(Iterators.partition(metalplts, n))
                 f /= foldl(/, map(c -> prod(UnicodePlots.panel.(c)), metalchunks))
+            else
+                wait(t1)
+                f = fetch(t1)
             end
             clearlinesall()
             display(f)
         catch e
             unhidecursor() # unhide cursor
-            if e isa InterruptException
+            if e isa InterruptException || e isa TaskFailedException
                 @info "Intrrupted"
                 break
             else
