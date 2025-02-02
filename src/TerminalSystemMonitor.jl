@@ -165,6 +165,9 @@ function main(dummyargs...)
                getproperty(getproperty(Main, :CUDA), :functional)()
                 wait(t1)
                 f = fetch(t1)
+                if isnothing(f)
+                    break
+                end
                 cudaplts = []
                 n = max(1, cols ÷ 50)
                 plts1 = plot_gpu_utilization_rates(CUDADevice)::Vector{Any}
