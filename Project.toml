@@ -11,15 +11,11 @@ UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
 
 [weakdeps]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
 MacOSIOReport = "27799fc1-e272-4181-9793-a9e1fcba685b"
 
 [extensions]
 TerminalSystemMonitorCUDAExt = "CUDA"
-TerminalSystemMonitorMetalExt = ["Metal"]
-
-[sources]
-MacOSIOReport = {url = "https://github.com/AtelierArith/MacOSIOReport.jl", rev="main"}
+TerminalSystemMonitorMacOSIOReportExt = "MacOSIOReport"
 
 [compat]
 Aqua = "0.8.9"
@@ -28,7 +24,6 @@ Dates = "1"
 JET = "0.9.12"
 MLDataDevices = "1.5.3"
 MacOSIOReport = "0.1.0"
-Metal = "1.5.1"
 ReTestItems = "1.29.0"
 Term = "2.0.6"
 Test = "1"
@@ -36,7 +31,6 @@ UnicodePlots = "3.7.0"
 julia = "1.10"
 
 [extras]
-MacOSIOReport = "27799fc1-e272-4181-9793-a9e1fcba685b"
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 ReTestItems = "817f1d60-ba6b-4fd5-9520-3cf149f6a823"

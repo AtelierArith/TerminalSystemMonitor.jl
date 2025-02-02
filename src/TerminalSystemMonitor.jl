@@ -143,14 +143,22 @@ function main(dummyargs...)
         try
             _, cols = displaysize(stdout)
             t1 = @async begin
-                plts = []
-                append!(plts, plot_cpu_utilization_rates(CPUDevice))
-                n = max(1, cols ÷ 25)
-                chunks = collect(Iterators.partition(plts, n))
-                f = foldl(/, map(c -> prod(UnicodePlots.panel.(c)), chunks))
+                try
+                    plts = []
+                    append!(plts, plot_cpu_utilization_rates(CPUDevice))
+                    n = max(1, cols ÷ 25)
+                    chunks = collect(Iterators.partition(plts, n))
+                    f = foldl(/, map(c -> prod(UnicodePlots.panel.(c)), chunks))
 
-                f /= prod(UnicodePlots.panel.(plot_cpu_memory_utilization(CPUDevice)))
-                f
+                    f /= prod(UnicodePlots.panel.(plot_cpu_memory_utilization(CPUDevice)))
+                    return f
+                catch e
+                    if e isa InterruptException
+                        return nothing
+                    else
+                        rethrow(e)
+                    end
+                end
             end
 
             if isdefined(Main, :CUDA) &&
@@ -167,16 +175,39 @@ function main(dummyargs...)
                 end
                 gpuchunks = collect(Iterators.partition(cudaplts, n))
                 f /= foldl(/, map(c -> prod(UnicodePlots.panel.(c)), gpuchunks))
-            elseif isdefined(Main, :Metal) && Sys.isapple() && Sys.ARCH == :aarch64
+            elseif isdefined(Main, :MacOSIOReport) && Sys.isapple() && Sys.ARCH == :aarch64
                 metalplts = []
                 n = max(1, cols ÷ 50)
-                t2 = @async plot_cpu_utilization_rates(MetalDevice)
-                t3 = @async plot_gpu_utilization_rates(MetalDevice)
+                t2 = @async begin
+                    try
+                        return plot_cpu_utilization_rates(MetalDevice)
+                    catch e
+                        if e isa InterruptException
+                            return nothing
+                        else
+                            rethrow(e)
+                        end
+                    end
+                end
+                t3 = @async begin
+                    try
+                        return plot_gpu_utilization_rates(MetalDevice)
+                    catch e
+                        if e isa InterruptException
+                            return nothing
+                        else
+                            rethrow(e)
+                        end
+                    end
+                end
                 wait(t1)
                 wait(t2)
                 wait(t3)
                 plts1 = fetch(t2)
                 plts2 = fetch(t3)
+                if isnothing(plts1) || isnothing(plts2)
+                    break
+                end
                 for i in eachindex(plts1)
                     push!(metalplts, plts1[i])
                 end
@@ -188,21 +219,18 @@ function main(dummyargs...)
             else
                 wait(t1)
                 f = fetch(t1)
+                if isnothing(f)
+                    break
+                end
             end
             clearlinesall()
             display(f)
         catch e
             unhidecursor() # unhide cursor
-            if e isa InterruptException || e isa TaskFailedException
-                @info "Intrrupted"
-                break
-            else
-                @warn "Got Exception"
-                rethrow(e) # so we don't swallow true exceptions
-            end
+            @warn "Got Exception"
+            rethrow(e) # so we don't swallow true exceptions
         end
     end
-    @info "Unhide cursor"
     unhidecursor() # unhide cursor
 end
 

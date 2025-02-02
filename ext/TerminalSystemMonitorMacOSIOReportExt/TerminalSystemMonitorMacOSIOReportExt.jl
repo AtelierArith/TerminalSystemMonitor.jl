@@ -1,10 +1,9 @@
-module TerminalSystemMonitorMetalExt
+module TerminalSystemMonitorMacOSIOReportExt
 
 using MLDataDevices: MetalDevice
 using UnicodePlots: barplot
 import TerminalSystemMonitor
-using Metal: MTLDevice
-using MacOSIOReport: Sampler, get_metrics
+using MacOSIOReport: Sampler, get_metrics, MTLDevice
 using TerminalSystemMonitor: extract_number_and_unit
 
 function _plot_cpu_utilization_rates(id, usage)
@@ -40,4 +39,4 @@ function TerminalSystemMonitor.plot_gpu_utilization_rates(::Type{MetalDevice})
     return plts
 end
 
-end # module TerminalSystemMonitorCUDAExt
+end # module TerminalSystemMonitorMacOSIOReportExt
