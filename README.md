@@ -135,4 +135,9 @@ Our Julia package [TerminalSystemMonitor.jl](https://github.com/AtelierArith/Ter
 
 ## Can I visualize GPU Apple Silicon processors?
 
-Technically yes, however, you may want to chekcout [context-labs/mactop](https://github.com/context-labs/mactop) or [tlkh/asitop](https://github.com/tlkh/asitop) to start instantly. To get information regarding GPU, we need to call `powermetrics` command which requires root privilege. If you are familiar with Rust language, [vladkens/macmon](https://github.com/vladkens/macmon) is what you need. It states "sudoless performance monitoring for Apple Silicon processors".
+Yes!!! See this [PR](https://github.com/AtelierArith/TerminalSystemMonitor.jl/pull/6#issue-2825769951)
+
+```julia
+julia> using MacOSIOReport; using TerminalSystemMonitor; monitor()
+```
+
