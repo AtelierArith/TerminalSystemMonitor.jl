@@ -3,11 +3,12 @@ module TerminalSystemMonitor
 using Dates: Dates, Day, DateTime, Second
 using UnicodePlots
 import Term # this is required by UnicodePlots.panel
-using MLDataDevices: MLDataDevices, CUDADevice
+using MLDataDevices: MLDataDevices, CUDADevice, CPUDevice, MetalDevice
 
 export monitor # entrypoint from REPL
 
 # These function will be defined in Package extensions
+function plot_cpu_utilization_rates end
 function plot_gpu_utilization_rates end
 function plot_gpu_memory_utilization end
 
@@ -77,7 +78,7 @@ function extract_number_and_unit(str::AbstractString)
     end
 end
 
-function plot_cpu_utilization_rates()
+function plot_cpu_utilization_rates(::Type{CPUDevice})
     ys = get_cpu_percent()
     npad = 1 + floor(Int, log10(length(ys)))
     xs = ["id: $(lpad(i-1, npad))" for (i, _) in enumerate(ys)]
@@ -94,7 +95,7 @@ function plot_cpu_utilization_rates()
     return plts
 end
 
-function plot_cpu_memory_utilization()
+function plot_cpu_memory_utilization(::Type{CPUDevice})
     memorytotal, memorytotal_unit =
         Sys.total_memory() |> Base.format_bytes |> extract_number_and_unit
     memoryfree, _ = Sys.free_memory() |> Base.format_bytes |> extract_number_and_unit
@@ -140,42 +141,99 @@ function main(dummyargs...)
 
     while true
         try
-            plts = []
-            append!(plts, plot_cpu_utilization_rates())
             _, cols = displaysize(stdout)
-            n = max(1, cols ÷ 25)
-            chunks = collect(Iterators.partition(plts, n))
-            f = foldl(/, map(c -> prod(UnicodePlots.panel.(c)), chunks))
+            t1 = @async begin
+                try
+                    plts = []
+                    append!(plts, plot_cpu_utilization_rates(CPUDevice))
+                    n = max(1, cols ÷ 25)
+                    chunks = collect(Iterators.partition(plts, n))
+                    f = foldl(/, map(c -> prod(UnicodePlots.panel.(c)), chunks))
 
-            f /= prod(UnicodePlots.panel.(plot_cpu_memory_utilization()))
+                    f /= prod(UnicodePlots.panel.(plot_cpu_memory_utilization(CPUDevice)))
+                    return f
+                catch e
+                    if e isa InterruptException
+                        return nothing
+                    else
+                        rethrow(e)
+                    end
+                end
+            end
 
             if isdefined(Main, :CUDA) &&
                getproperty(getproperty(Main, :CUDA), :functional)()
+                wait(t1)
+                f = fetch(t1)
+                if isnothing(f)
+                    break
+                end
                 cudaplts = []
                 n = max(1, cols ÷ 50)
-                plts1 = plot_gpu_utilization_rates(MLDataDevices.CUDADevice)::Vector{Any}
-                plts2 = plot_gpu_memory_utilization(MLDataDevices.CUDADevice)::Vector{Any}
+                plts1 = plot_gpu_utilization_rates(CUDADevice)::Vector{Any}
+                plts2 = plot_gpu_memory_utilization(CUDADevice)::Vector{Any}
                 for i in eachindex(plts1, plts2)
                     push!(cudaplts, plts1[i])
                     push!(cudaplts, plts2[i])
                 end
                 gpuchunks = collect(Iterators.partition(cudaplts, n))
                 f /= foldl(/, map(c -> prod(UnicodePlots.panel.(c)), gpuchunks))
+            elseif isdefined(Main, :MacOSIOReport) && Sys.isapple() && Sys.ARCH == :aarch64
+                metalplts = []
+                n = max(1, cols ÷ 50)
+                t2 = @async begin
+                    try
+                        return plot_cpu_utilization_rates(MetalDevice)
+                    catch e
+                        if e isa InterruptException
+                            return nothing
+                        else
+                            rethrow(e)
+                        end
+                    end
+                end
+                t3 = @async begin
+                    try
+                        return plot_gpu_utilization_rates(MetalDevice)
+                    catch e
+                        if e isa InterruptException
+                            return nothing
+                        else
+                            rethrow(e)
+                        end
+                    end
+                end
+                wait(t1)
+                wait(t2)
+                wait(t3)
+                plts1 = fetch(t2)
+                plts2 = fetch(t3)
+                if isnothing(plts1) || isnothing(plts2)
+                    break
+                end
+                for i in eachindex(plts1)
+                    push!(metalplts, plts1[i])
+                end
+                for i in eachindex(plts2)
+                    push!(metalplts, plts2[i])
+                end
+                metalchunks = collect(Iterators.partition(metalplts, n))
+                f /= foldl(/, map(c -> prod(UnicodePlots.panel.(c)), metalchunks))
+            else
+                wait(t1)
+                f = fetch(t1)
+                if isnothing(f)
+                    break
+                end
             end
             clearlinesall()
             display(f)
         catch e
             unhidecursor() # unhide cursor
-            if e isa InterruptException
-                @info "Intrrupted"
-                break
-            else
-                @warn "Got Exception"
-                rethrow(e) # so we don't swallow true exceptions
-            end
+            @warn "Got Exception"
+            rethrow(e) # so we don't swallow true exceptions
         end
     end
-    @info "Unhide cursor"
     unhidecursor() # unhide cursor
 end
 
