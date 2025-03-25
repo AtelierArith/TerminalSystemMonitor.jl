@@ -3,6 +3,7 @@ module TerminalSystemMonitor
 using Dates: Dates, Day, DateTime, Second
 using UnicodePlots
 import Term # this is required by UnicodePlots.panel
+using Term: Consoles
 using MLDataDevices: MLDataDevices, CUDADevice, CPUDevice, MetalDevice
 
 export monitor # entrypoint from REPL
@@ -129,15 +130,11 @@ function plot_cpu_memory_utilization(::Type{CPUDevice})
             width = 30,
         ),
     )
-
-end
-
-function monitor(args...)
-    main(args...)
 end
 
 function main(dummyargs...)
-    hidecursor()
+    # Control cursor hiding and showing with Term.Consoles
+    Consoles.hide_cursor()
 
     while true
         try
@@ -226,15 +223,21 @@ function main(dummyargs...)
                     break
                 end
             end
-            clearlinesall()
+
+            Consoles.move_to_line(stdout, 1)
+            Consoles.cleartoend(stdout)
             display(f)
         catch e
-            unhidecursor() # unhide cursor
+            Consoles.show_cursor()
             @warn "Got Exception"
             rethrow(e) # so we don't swallow true exceptions
         end
     end
-    unhidecursor() # unhide cursor
+    Consoles.show_cursor()
+end
+
+function monitor(args...)
+    main(args...)
 end
 
 end # module TerminalSystemMonitor
