@@ -8,6 +8,8 @@ Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 MLDataDevices = "7e8f7934-dd98-4c1a-8fe8-92b47a384d40"
 Term = "22787eb5-b846-44ae-b979-8e399b8463ab"
 UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
+Observables = "510215fc-4207-5dde-b226-833fc4488ee2"
+QML = "2db162a6-7e43-52c3-8d84-290c1c42d82a"
 
 [weakdeps]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
@@ -15,6 +17,7 @@ MacOSIOReport = "27799fc1-e272-4181-9793-a9e1fcba685b"
 
 [extensions]
 TerminalSystemMonitorCUDAExt = "CUDA"
+TerminalSystemMonitorGUIExt = ["QML", "Observables"]
 TerminalSystemMonitorMacOSIOReportExt = "MacOSIOReport"
 
 [compat]
@@ -35,6 +38,3 @@ Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 ReTestItems = "817f1d60-ba6b-4fd5-9520-3cf149f6a823"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["Aqua", "JET", "ReTestItems", "Test"]

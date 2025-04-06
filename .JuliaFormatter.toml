@@ -1,0 +1,11 @@
+# See https://domluna.github.io/JuliaFormatter.jl/stable/ for a list of options
+margin = 200
+remove_extra_newlines = true
+trailing_zero = false
+join_lines_based_on_source = true
+whitespace_in_kwargs = true
+align_assignment   = true
+align_struct_field = true
+align_conditional  = true
+align_pair_arrow   = true
+align_matrix       = true

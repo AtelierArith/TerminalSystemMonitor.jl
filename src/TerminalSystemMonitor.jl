@@ -13,6 +13,10 @@ function plot_cpu_utilization_rates end
 function plot_gpu_utilization_rates end
 function plot_gpu_memory_utilization end
 
+include(joinpath(pwd(), "ext", "TerminalSystemMonitorGUIExt", "TerminalSystemMonitorGUIExt.jl"))
+using .TerminalSystemMonitorGUIExt
+export monitorGUI
+
 idle_time(info::Sys.CPUinfo) = Int64(info.cpu_times!idle)
 
 busy_time(info::Sys.CPUinfo) = Int64(
@@ -29,7 +33,6 @@ The idea is borrowed from https://discourse.julialang.org/t/get-cpu-usage/24468/
 Thank you @fonsp.
 """
 function get_cpu_percent(period::Real = 1.0)
-
     info = Sys.cpu_info()
     busies = busy_time.(info)
     idles = idle_time.(info)
