@@ -84,6 +84,8 @@ function plot_cpu_utilization_rates(::Type{CPUDevice})
     ys = get_cpu_percent()
     npad = 1 + floor(Int, log10(length(ys)))
     xs = ["id: $(lpad(i-1, npad))" for (i, _) in enumerate(ys)]
+_relu(x) = max(x, zero(x))
+
 function plot_cpu_utilization_rates(::Type{CPUDevice}, statfn=identity)
     ys = statfn(get_cpu_percent())
     if !(ys isa AbstractVector)
@@ -95,7 +97,9 @@ function plot_cpu_utilization_rates(::Type{CPUDevice}, statfn=identity)
     end
 
     ncpus = length(ys)
-    ys = round.(ys, digits = 1)
+    # Sometimes `ys`` can be negative, so we need to use relu function so that
+    # it ensures elements in `ys`` are positive.
+    ys = round.(_relu.(ys), digits = 1)
 
     plts = []
 
