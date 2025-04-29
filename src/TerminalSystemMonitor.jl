@@ -114,6 +114,9 @@ function plot_cpu_memory_utilization(::Type{CPUDevice})
         return []
     end
     memoryusage = memorytotal - memoryfree
+    # Sometimes `memoryusage` has negative for the first time.
+    # The following line ensures `memoryusage` should be non-negative.
+    memoryusage = _relu(memoryusage)
     memorytotal = round(memorytotal)
 
     seconds = floor(Int, Sys.uptime())
