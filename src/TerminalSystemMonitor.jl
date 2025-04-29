@@ -4,6 +4,7 @@ using Dates: Dates, Day, DateTime, Second
 using UnicodePlots
 import Term # this is required by UnicodePlots.panel
 using Term: Consoles
+using Statistics: mean
 using MLDataDevices: MLDataDevices, CUDADevice, CPUDevice, MetalDevice
 
 export monitor # entrypoint from REPL
@@ -79,13 +80,22 @@ function extract_number_and_unit(str::AbstractString)
     end
 end
 
-function plot_cpu_utilization_rates(::Type{CPUDevice})
-    ys = get_cpu_percent()
-    npad = 1 + floor(Int, log10(length(ys)))
-    xs = ["id: $(lpad(i-1, npad))" for (i, _) in enumerate(ys)]
+_relu(x) = max(x, zero(x))
+
+function plot_cpu_utilization_rates(::Type{CPUDevice}, statfn=identity)
+    ys = statfn(get_cpu_percent())
+    if !(ys isa AbstractVector)
+        xs = ["CPU: " * string(statfn)]
+        ys = [ys]
+    else
+        npad = 1 + floor(Int, log10(length(ys)))
+        xs = ["id: $(lpad(i-1, npad))" for (i, _) in enumerate(ys)]
+    end
 
     ncpus = length(ys)
-    ys = round.(ys, digits = 1)
+    # Sometimes `ys`` can be negative, so we need to use relu function so that
+    # it ensures elements in `ys`` are positive.
+    ys = round.(_relu.(ys), digits = 1)
 
     plts = []
 
@@ -136,13 +146,14 @@ function main(dummyargs...)
     # Control cursor hiding and showing with Term.Consoles
     Consoles.hide_cursor()
 
+    statfn = identity
     while true
         try
-            _, cols = displaysize(stdout)
+            rows, cols = displaysize(stdout)
             t1 = @async begin
                 try
                     plts = []
-                    append!(plts, plot_cpu_utilization_rates(CPUDevice))
+                    append!(plts, plot_cpu_utilization_rates(CPUDevice, statfn))
                     n = max(1, cols ÷ 25)
                     chunks = collect(Iterators.partition(plts, n))
                     f = foldl(/, map(c -> prod(UnicodePlots.panel.(c)), chunks))
@@ -226,6 +237,16 @@ function main(dummyargs...)
 
             Consoles.move_to_line(stdout, 1)
             Consoles.cleartoend(stdout)
+            # If user's machine has lots of CPU cores, we can't fit all the plots in one screen.
+            # So we need to use `mean` function to reduce the number of plots.
+            if length(split(string(f), "\n")) > 2rows
+                statfn = mean
+            end
+
+            # If terminal has enough space, we can use `identity` function again to show all the plots.
+            if  rows > 2length(split(string(f), "\n"))
+                statfn = identity
+            end
             display(f)
         catch e
             Consoles.show_cursor()
