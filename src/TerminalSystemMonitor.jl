@@ -80,10 +80,6 @@ function extract_number_and_unit(str::AbstractString)
     end
 end
 
-function plot_cpu_utilization_rates(::Type{CPUDevice})
-    ys = get_cpu_percent()
-    npad = 1 + floor(Int, log10(length(ys)))
-    xs = ["id: $(lpad(i-1, npad))" for (i, _) in enumerate(ys)]
 _relu(x) = max(x, zero(x))
 
 function plot_cpu_utilization_rates(::Type{CPUDevice}, statfn=identity)
