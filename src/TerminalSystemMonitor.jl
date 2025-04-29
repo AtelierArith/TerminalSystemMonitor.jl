@@ -239,7 +239,7 @@ function main(dummyargs...)
             Consoles.cleartoend(stdout)
             # If user's machine has lots of CPU cores, we can't fit all the plots in one screen.
             # So we need to use `mean` function to reduce the number of plots.
-            if length(split(string(f), "\n")) > rows
+            if length(split(string(f), "\n")) > 2rows
                 statfn = mean
             end
 
