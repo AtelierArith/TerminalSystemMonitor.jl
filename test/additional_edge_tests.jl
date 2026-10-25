@@ -128,4 +128,16 @@ end
     @test report.chan == report.subs == C_NULL
     close_sampler((ior=report,); release=p -> push!(released, p))
     @test length(released) == 3
+    empty!(released)
+    interrupted = LegacyReport((C_NULL, nothing), Ptr{Cvoid}(4), Ptr{Cvoid}(5))
+    close_sampler((ior=interrupted,); release=p -> push!(released, p))
+    @test released == Ptr{Cvoid}.([4, 5])
+
+    struct ModernSampler
+        closed::Base.RefValue{Bool}
+    end
+    Base.close(sampler::ModernSampler) = (sampler.closed[] = true)
+    modern = ModernSampler(Ref(false))
+    close_sampler(modern; release=p -> error("must use the native close API"))
+    @test modern.closed[]
 end
