@@ -55,44 +55,34 @@ end
 @testitem "Compact layout remains stable" begin
     using Test
     using Statistics: mean
-    using TerminalSystemMonitor: next_cpu_statfn
+    using TerminalSystemMonitor: fit_frame
 
     # A frame only one line too tall must collapse. A subsequent short frame
     # must not immediately restore the overflowing full layout.
-    @test next_cpu_statfn(identity, 25, 24) === mean
-    @test next_cpu_statfn(mean, 8, 24) === mean
-    @test next_cpu_statfn(identity, 24, 24) === identity
+    renderer = (cols, fn) -> fn === identity ? join(1:25, '\n') : join(1:8, '\n')
+    _, fn = fit_frame(renderer, 24, 80, identity)
+    @test fn === mean
+    _, fn = fit_frame(renderer, 24, 80, fn)
+    @test fn === mean
+    _, fn = fit_frame((cols, fn) -> join(1:24, '\n'), 24, 80, identity)
+    @test fn === identity
 end
 
-@testitem "Cursor restored after display failure and interrupt" begin
+@testitem "Terminal restored after rendering failure and interrupt" begin
     using Test
     using TerminalSystemMonitor: main
 
-    struct FailingDisplay <: AbstractDisplay
-        exception::Exception
-    end
-    Base.display(d::FailingDisplay, x) = throw(d.exception)
-
-    for exception in (ErrorException("display failed"), InterruptException())
-        mktemp() do path, io
-            redirect_stdout(io) do
-                display = FailingDisplay(exception)
-                pushdisplay(display)
-                try
-                    if exception isa InterruptException
-                        @test main() === nothing
-                    else
-                        @test_throws ErrorException main()
-                    end
-                finally
-                    popdisplay(display)
-                end
-            end
-            seekstart(io)
-            output = read(io, String)
-            @test startswith(output, "\e[?25l")
-            @test endswith(output, "\e[?25h")
+    for exception in (ErrorException("render failed"), InterruptException())
+        io = IOBuffer()
+        renderer = (cols, statfn) -> throw(exception)
+        if exception isa InterruptException
+            @test main(; io, renderer) === nothing
+        else
+            @test_throws ErrorException main(; io, renderer)
         end
+        output = String(take!(io))
+        @test startswith(output, "\e[?1049h\e[?25l")
+        @test endswith(output, "\e[?25h\e[?1049l")
     end
 end
 
