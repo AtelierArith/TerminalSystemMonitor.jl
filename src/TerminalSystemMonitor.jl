@@ -171,7 +171,7 @@ function format_uptime(seconds::Integer)
     return "$(days) days, $(lpad(hours, 2, '0')):$(lpad(minutes, 2, '0')):$(lpad(secs, 2, '0'))"
 end
 
-panel_width(panel) = maximum(textwidth ∘ Term.remove_ansi, split(string(panel), '\n'); init=0)
+panel_width(panel) = maximum(display_width, split(string(panel), '\n'); init=0)
 as_panel(plot::UnicodePlots.Plot) = UnicodePlots.panel(plot)
 as_panel(panel) = panel
 
@@ -252,19 +252,53 @@ function fit_frame(renderer, rows, cols, statfn)
     return frame, statfn
 end
 
-function crop_line(line, columns)
+function sanitize_terminal(text)
+    # Telemetry labels may contain terminal controls. Only SGR styling is data.
+    # Normalize other controls first, retaining BEL until OSC parsing is done.
+    text = replace(text, r"[\x00-\x06\x08\x0b-\x1a\x1c-\x1f\x7f-\x9f]" => "")
+    controls = r"\e\].*?(?:\a|\e\\|$)|\e[P^_X].*?(?:\e\\|$)|\e\[[0-?]*[ -/]*(?:[@-~]|$)|\e[ -/]*[@-~]|\e"s
+    text = replace(text, controls => token ->
+        occursin(r"^\e\[[0-9;:]*m$", token) ? token : "")
+    return replace(text, '\a' => "")
+end
+
+function grapheme_width(text)
+    # Emoji presentation and joined/modifier sequences occupy one terminal cell
+    # pair even when Base.textwidth sums multiple emoji codepoints.
+    emoji_presentation = occursin('\ufe0f', text) || occursin('\u20e3', text)
+    joined_emoji = occursin('\u200d', text) && any(c -> textwidth(c) == 2, text)
+    modifier = any(c -> '\U0001f3fb' <= c <= '\U0001f3ff', text)
+    return emoji_presentation || joined_emoji || modifier ? 2 : textwidth(text)
+end
+
+function display_width(text)
+    width = 0
+    for grapheme in graphemes(Term.remove_ansi(sanitize_terminal(text)))
+        width += grapheme == "\t" ? 8 - mod(width, 8) : grapheme_width(grapheme)
+    end
+    return width
+end
+
+function crop_line(line, columns; style=Ref(""))
     out = IOBuffer()
     width = 0
-    # Preserve SGR colors while measuring printable graphemes, not ANSI bytes.
-    for token in eachmatch(r"\e\[[0-?]*[ -/]*[@-~]|[^\e]+", line)
+    clipped = false
+    print(out, style[])
+    for token in eachmatch(r"\e\[[0-9;:]*m|[^\e]+", sanitize_terminal(line))
         text = token.match
         if startswith(text, "\e[")
-            print(out, text)
+            style[] = text in ("\e[0m", "\e[m") ? "" : style[] * text
+            clipped || print(out, text)
         else
             for grapheme in graphemes(text)
-                nextwidth = textwidth(grapheme)
-                width + nextwidth > columns && return String(take!(out)) * "\e[0m"
-                print(out, grapheme)
+                clipped && continue
+                nextwidth = grapheme == "\t" ? 8 - mod(width, 8) : grapheme_width(grapheme)
+                if width + nextwidth > columns
+                    grapheme == "\t" && print(out, " " ^ max(columns - width, 0))
+                    clipped = true
+                    continue
+                end
+                print(out, grapheme == "\t" ? " " ^ nextwidth : grapheme)
                 width += nextwidth
             end
         end
@@ -274,44 +308,79 @@ end
 
 function viewport(frame, rows, cols)
     (rows <= 0 || cols <= 1) && return ""
-    lines = split(string(frame), '\n')
+    lines = split(sanitize_terminal(string(frame)), '\n')
     if length(lines) > rows
         omitted = length(lines) - rows + 1
         lines = vcat(lines[1:rows-1], ["... $(omitted) more lines; enlarge terminal"])
     end
     # Leave the last column unused to avoid automatic wrap at the bottom edge.
-    return join((crop_line(line, cols - 1) for line in lines), '\n')
+    style = Ref("")
+    return join((crop_line(line, cols - 1; style) for line in lines), '\n')
 end
 
-function main(dummyargs...; io::IO=stdout, frames::Integer=typemax(Int), renderer=render_frame)
+function with_cleanup(f, cleanup)
+    primary = nothing
+    try
+        return f()
+    catch e
+        primary = e
+        rethrow()
+    finally
+        try
+            cleanup()
+        catch e
+            isnothing(primary) && rethrow()
+            failures = e isa CompositeException ? e.exceptions : Any[e]
+            throw(CompositeException(Any[primary; failures]))
+        end
+    end
+end
+
+function with_resource(f, create, release=close)
+    resource = create()
+    return with_cleanup(() -> f(resource), () -> release(resource))
+end
+
+function restore_terminal(io)
+    failures = Any[]
+    for action in (() -> Consoles.show_cursor(io), () -> print(io, "\e[?1049l"), () -> flush(io))
+        try
+            action()
+        catch e
+            push!(failures, e)
+        end
+    end
+    isempty(failures) || throw(CompositeException(failures))
+    return nothing
+end
+
+layout_statfn(statfn, previous, current) = previous == current ? statfn : identity
+
+function main(dummyargs...; io::IO=stdout, frames::Integer=typemax(Int), renderer=render_frame,
+              cpu_count=() -> length(Sys.cpu_info()))
     frames >= 0 || throw(ArgumentError("frames must be nonnegative"))
     frames == 0 && return nothing
     try
-        # Keep the shell's contents in the normal screen buffer.
-        print(io, "\e[?1049h")
-        Consoles.hide_cursor(io)
-        statfn = identity
-        previous_size = displaysize(io)
-        for _ in 1:frames
-            rows, cols = displaysize(io)
-            if (rows, cols) != previous_size
-                statfn = identity
+        with_cleanup(() -> begin
+            print(io, "\e[?1049h")
+            Consoles.hide_cursor(io)
+            statfn = identity
+            previous_layout = (displaysize(io)..., cpu_count())
+            for _ in 1:frames
+                rows, cols = displaysize(io)
+                current_layout = (rows, cols, cpu_count())
+                statfn = layout_statfn(statfn, previous_layout, current_layout)
+                previous_layout = current_layout
+                frame, statfn = fit_frame(renderer, rows, cols, statfn)
+                isnothing(frame) && break
+                rows, cols = displaysize(io)
+                print(io, "\e[H\e[J", viewport(frame, rows, cols))
+                flush(io)
             end
-            previous_size = (rows, cols)
-            frame, statfn = fit_frame(renderer, rows, cols, statfn)
-            isnothing(frame) && break
-            # Sampling may take a second; honor a resize that occurred meanwhile.
-            rows, cols = displaysize(io)
-            print(io, "\e[H\e[J", viewport(frame, rows, cols))
-            flush(io)
-        end
+        end, () -> restore_terminal(io))
     catch e
         e isa InterruptException && return nothing
         rethrow()
-    finally
-        Consoles.show_cursor(io)
-        print(io, "\e[?1049l")
-        flush(io)
     end
     return nothing
 end
