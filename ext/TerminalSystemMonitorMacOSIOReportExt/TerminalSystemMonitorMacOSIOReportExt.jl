@@ -19,6 +19,10 @@ function TerminalSystemMonitor.plot_cpu_utilization_rates(::Type{MetalDevice})
     sampler = Sampler()
     msec = UInt(500)
     m = get_metrics(sampler, msec)
+    return cpu_plots(m)
+end
+
+function cpu_plots(m)
     cpu_ids = ["E-CPU: ", "P-CPU: "]
     usages = [
         round(100 * m.ecpu_usage[2], digits = 1),
@@ -31,15 +35,23 @@ function TerminalSystemMonitor.plot_gpu_utilization_rates(::Type{MetalDevice})
     sampler = Sampler()
     msec = UInt(500)
     m = get_metrics(sampler, msec)
-    gpu_usages = [
-        ("GPU: ", round(100 * m.gpu_usage[2], digits = 1)),
-    ]
+    return gpu_plots(m)
+end
+
+function gpu_plots(m)
     plts = []
     chip_name = String(MTLDevice(1).name)
     push!(
         plts, barplot(["GPU: "], [round(100 * m.gpu_usage[2], digits = 1)], xlabel=chip_name, maximum=100, width=15)
     )
     return plts
+end
+
+function TerminalSystemMonitor.backend_plots(::Type{MetalDevice})
+    sampler = Sampler()
+    return TerminalSystemMonitor.shared_metric_plots(
+        () -> get_metrics(sampler, UInt(500)), cpu_plots, gpu_plots,
+    )
 end
 
 end # module TerminalSystemMonitorMacOSIOReportExt

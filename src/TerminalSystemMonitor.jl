@@ -4,6 +4,7 @@ using UnicodePlots
 import Term # this is required by UnicodePlots.panel
 using Term: Consoles
 using Statistics: mean
+using Unicode: graphemes
 using MLDataDevices: MLDataDevices, CUDADevice, CPUDevice, MetalDevice
 
 export monitor # entrypoint from REPL
@@ -12,6 +13,7 @@ export monitor # entrypoint from REPL
 function plot_cpu_utilization_rates end
 function plot_gpu_utilization_rates end
 function plot_gpu_memory_utilization end
+function backend_plots end
 
 # Extensions opt in when their backend is available, regardless of which module
 # imported the optional package.
@@ -100,7 +102,12 @@ end
 _relu(x) = max(x, zero(x))
 
 function plot_cpu_utilization_rates(::Type{CPUDevice}, statfn=identity)
-    ys = statfn(get_cpu_percent())
+    return cpu_plots(get_cpu_percent(), statfn)
+end
+
+function cpu_plots(rates, statfn=identity)
+    isempty(rates) && return Any[]
+    ys = statfn(rates)
     if !(ys isa AbstractVector)
         xs = ["CPU: " * string(statfn)]
         ys = [ys]
@@ -164,12 +171,45 @@ function format_uptime(seconds::Integer)
     return "$(days) days, $(lpad(hours, 2, '0')):$(lpad(minutes, 2, '0')):$(lpad(secs, 2, '0'))"
 end
 
+panel_width(panel) = maximum(textwidth ∘ Term.remove_ansi, split(string(panel), '\n'); init=0)
+as_panel(plot::UnicodePlots.Plot) = UnicodePlots.panel(plot)
+as_panel(panel) = panel
+
+function layout_panels(panels, cols)
+    rows = Any[]
+    row = nothing
+    rowwidth = 0
+    for panel in panels
+        width = panel_width(panel)
+        if !isnothing(row) && rowwidth + width > max(cols - 1, 0)
+            push!(rows, row)
+            row = nothing
+            rowwidth = 0
+        end
+        row = isnothing(row) ? panel : row * panel
+        rowwidth += width
+    end
+    isnothing(row) || push!(rows, row)
+    return isempty(rows) ? nothing : foldl(/, rows)
+end
+
 function cpu_frame(cols, statfn)
-    plts = plot_cpu_utilization_rates(CPUDevice, statfn)
-    n = max(1, cols ÷ 25)
-    chunks = Iterators.partition(plts, n)
-    f = foldl(/, (prod(UnicodePlots.panel.(c)) for c in chunks))
-    return f / prod(UnicodePlots.panel.(plot_cpu_memory_utilization(CPUDevice)))
+    plots = plot_cpu_utilization_rates(CPUDevice, statfn)
+    append!(plots, plot_cpu_memory_utilization(CPUDevice))
+    return layout_panels(as_panel.(plots), cols)
+end
+
+function paired_device_plots(devices, utilization, memory)
+    plots = Any[]
+    for (index, device) in enumerate(devices)
+        push!(plots, utilization(index - 1, device), memory(device))
+    end
+    return plots
+end
+
+function shared_metric_plots(sample, cpuplot, gpuplot)
+    metrics = sample()
+    return vcat(cpuplot(metrics), gpuplot(metrics))
 end
 
 function interruptible(f)
@@ -193,72 +233,91 @@ end
 
 function render_frame(cols, statfn)
     cpu = () -> cpu_frame(cols, statfn)
-    if gpu_available(CUDADevice)
-        frame, usages, memories = sample_plots(
-            cpu,
-            () -> plot_gpu_utilization_rates(CUDADevice),
-            () -> plot_gpu_memory_utilization(CUDADevice),
-        )
-        any(isnothing, (frame, usages, memories)) && return nothing
-        plots = Any[]
-        for i in eachindex(usages, memories)
-            push!(plots, usages[i], memories[i])
+    device = gpu_available(CUDADevice) ? CUDADevice :
+             gpu_available(MetalDevice) ? MetalDevice : nothing
+    isnothing(device) && return only(sample_plots(cpu))
+    frame, plots = sample_plots(cpu, () -> backend_plots(device))
+    any(isnothing, (frame, plots)) && return nothing
+    gpu = layout_panels(as_panel.(plots), cols)
+    return isnothing(gpu) ? frame : frame / gpu
+end
+
+function fit_frame(renderer, rows, cols, statfn)
+    frame = renderer(cols, statfn)
+    isnothing(frame) && return nothing, statfn
+    if statfn === identity && length(split(string(frame), '\n')) > rows
+        statfn = mean
+        frame = renderer(cols, statfn)
+    end
+    return frame, statfn
+end
+
+function crop_line(line, columns)
+    out = IOBuffer()
+    width = 0
+    # Preserve SGR colors while measuring printable graphemes, not ANSI bytes.
+    for token in eachmatch(r"\e\[[0-?]*[ -/]*[@-~]|[^\e]+", line)
+        text = token.match
+        if startswith(text, "\e[")
+            print(out, text)
+        else
+            for grapheme in graphemes(text)
+                nextwidth = textwidth(grapheme)
+                width + nextwidth > columns && return String(take!(out)) * "\e[0m"
+                print(out, grapheme)
+                width += nextwidth
+            end
         end
-    elseif gpu_available(MetalDevice)
-        frame, clusters, gpu = sample_plots(
-            cpu,
-            () -> plot_cpu_utilization_rates(MetalDevice),
-            () -> plot_gpu_utilization_rates(MetalDevice),
-        )
-        any(isnothing, (frame, clusters, gpu)) && return nothing
-        plots = vcat(clusters, gpu)
-    else
-        return only(sample_plots(cpu))
     end
-    if !isempty(plots)
-        chunks = Iterators.partition(plots, max(1, cols ÷ 50))
-        frame /= foldl(/, (prod(UnicodePlots.panel.(c)) for c in chunks))
-    end
-    return frame
+    return String(take!(out)) * "\e[0m"
 end
 
-function next_cpu_statfn(statfn, height, rows)
-    height > rows && return mean
-    # A compact frame fitting the terminal does not prove the full frame will fit.
-    # Retry the full layout only when the terminal grows or changes shape.
-    return statfn
+function viewport(frame, rows, cols)
+    (rows <= 0 || cols <= 1) && return ""
+    lines = split(string(frame), '\n')
+    if length(lines) > rows
+        omitted = length(lines) - rows + 1
+        lines = vcat(lines[1:rows-1], ["... $(omitted) more lines; enlarge terminal"])
+    end
+    # Leave the last column unused to avoid automatic wrap at the bottom edge.
+    return join((crop_line(line, cols - 1) for line in lines), '\n')
 end
 
-function main(dummyargs...)
+function main(dummyargs...; io::IO=stdout, frames::Integer=typemax(Int), renderer=render_frame)
+    frames >= 0 || throw(ArgumentError("frames must be nonnegative"))
+    frames == 0 && return nothing
     try
-        Consoles.hide_cursor()
+        # Keep the shell's contents in the normal screen buffer.
+        print(io, "\e[?1049h")
+        Consoles.hide_cursor(io)
         statfn = identity
-        previous_size = displaysize(stdout)
-        while true
-            rows, cols = displaysize(stdout)
-            resized = (rows, cols) != previous_size
-            if resized
+        previous_size = displaysize(io)
+        for _ in 1:frames
+            rows, cols = displaysize(io)
+            if (rows, cols) != previous_size
                 statfn = identity
             end
             previous_size = (rows, cols)
-            frame = render_frame(cols, statfn)
+            frame, statfn = fit_frame(renderer, rows, cols, statfn)
             isnothing(frame) && break
-            height = length(split(string(frame), '\n'))
-            statfn = next_cpu_statfn(statfn, height, rows)
-            Consoles.move_to_line(stdout, 1)
-            Consoles.cleartoend(stdout)
-            display(frame)
+            # Sampling may take a second; honor a resize that occurred meanwhile.
+            rows, cols = displaysize(io)
+            print(io, "\e[H\e[J", viewport(frame, rows, cols))
+            flush(io)
         end
     catch e
         e isa InterruptException && return nothing
         rethrow()
     finally
-        Consoles.show_cursor()
+        Consoles.show_cursor(io)
+        print(io, "\e[?1049l")
+        flush(io)
     end
+    return nothing
 end
 
-function monitor(args...)
-    main(args...)
+function monitor(args...; kwargs...)
+    main(args...; kwargs...)
 end
 
 end # module TerminalSystemMonitor

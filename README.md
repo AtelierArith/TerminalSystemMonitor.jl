@@ -105,6 +105,13 @@ $ julia --project
 julia> using TerminalSystemMonitor; monitor()
 ```
 
+The monitor uses the terminal's alternate screen and restores the shell display
+when it exits. It writes to `stdout` by default, independently of notebook or
+other Julia display backends. Use `monitor(; frames=10)` to stop after ten frames,
+or `monitor(; io=stream, frames=10)` to direct terminal output to another stream.
+Frames are bounded to the current terminal size; enlarge the terminal if an
+omitted-lines message appears.
+
 ### Monitoring GPU Usage
 
 Please load `CUDA.jl` package in advance:
@@ -112,6 +119,11 @@ Please load `CUDA.jl` package in advance:
 ```julia
 julia> using CUDA; using TerminalSystemMonitor; monitor()
 ```
+
+CUDA monitoring requires NVML as well as a functional CUDA driver. If NVML is
+unavailable, CPU monitoring remains active. Individual unsupported metrics are
+shown as `N/A`. The optional `scripts/check_cuda.jl` smoke test can be run in an
+environment containing CUDA and TerminalSystemMonitor.
 
 ## Why not `htop`?
 
