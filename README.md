@@ -10,6 +10,12 @@ This Julia package displays CPU and RAM usage information on your computer. If n
 
 ## Installation
 
+### Supported Julia versions
+
+Julia 1.10 and the latest stable Julia 1.x release are tested on Linux, macOS,
+and Windows in CI, including a weekly compatibility check. GPU extensions require
+compatible hardware and are not covered by this CPU-only test matrix.
+
 ### Step 1. Install Julia
 
 #### macOS or Linux

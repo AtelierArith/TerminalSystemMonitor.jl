@@ -1,6 +1,5 @@
 module TerminalSystemMonitor
 
-using Dates: Dates, Day, DateTime, Second
 using UnicodePlots
 import Term # this is required by UnicodePlots.panel
 using Term: Consoles
@@ -107,20 +106,15 @@ function plot_cpu_utilization_rates(::Type{CPUDevice}, statfn=identity)
 end
 
 function plot_cpu_memory_utilization(::Type{CPUDevice})
-    memorytotal, memorytotal_unit =
-        Sys.total_memory() |> Base.format_bytes |> extract_number_and_unit
-    memoryfree, _ = Sys.free_memory() |> Base.format_bytes |> extract_number_and_unit
-    if isnothing(memorytotal) || isnothing(memoryfree)
-        return []
-    end
-    memoryusage = memorytotal - memoryfree
-    # Sometimes `memoryusage` has negative for the first time.
-    # The following line ensures `memoryusage` should be non-negative.
-    memoryusage = _relu(memoryusage)
-    memorytotal = round(memorytotal)
+    # Keep calculations in one unit; formatting free and total independently
+    # can produce MiB and GiB values that cannot be subtracted directly.
+    total_bytes = Sys.total_memory()
+    memorytotal = total_bytes / 2.0^30
+    memorytotal_unit = "GiB"
+    memoryusage = _relu(Int128(total_bytes) - Int128(Sys.free_memory())) / 2.0^30
 
     seconds = floor(Int, Sys.uptime())
-    datetime = DateTime(1970) + Second(seconds)
+    uptime = format_uptime(seconds)
 
     plts = []
     push!(
@@ -133,7 +127,7 @@ function plot_cpu_memory_utilization(::Type{CPUDevice})
                     "Load average: " *
                     join(string.(round.(Sys.loadavg(), digits = 2)), ' '),
                     # Adds spaces for better styling
-                    "      Uptime: $(max(Day(0), Day(datetime)-Day(1))), $(Dates.format(datetime, "HH:MM:SS"))",
+                    "      Uptime: $(uptime)",
                 ],
                 '\n',
             ),
@@ -143,6 +137,13 @@ function plot_cpu_memory_utilization(::Type{CPUDevice})
             width = 30,
         ),
     )
+end
+
+function format_uptime(seconds::Integer)
+    days, remaining = divrem(seconds, 86400)
+    hours, remaining = divrem(remaining, 3600)
+    minutes, secs = divrem(remaining, 60)
+    return "$(days) days, $(lpad(hours, 2, '0')):$(lpad(minutes, 2, '0')):$(lpad(secs, 2, '0'))"
 end
 
 function main(dummyargs...)
@@ -217,9 +218,10 @@ function main(dummyargs...)
                 wait(t1)
                 wait(t2)
                 wait(t3)
+                f = fetch(t1)
                 plts1 = fetch(t2)
                 plts2 = fetch(t3)
-                if isnothing(plts1) || isnothing(plts2)
+                if isnothing(f) || isnothing(plts1) || isnothing(plts2)
                     break
                 end
                 for i in eachindex(plts1)
