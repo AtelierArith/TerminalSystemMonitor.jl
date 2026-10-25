@@ -6,6 +6,9 @@ import TerminalSystemMonitor
 using MacOSIOReport: Sampler, get_metrics, MTLDevice
 using TerminalSystemMonitor: extract_number_and_unit
 
+TerminalSystemMonitor.gpu_available(::Type{MetalDevice}) =
+    Sys.isapple() && Sys.ARCH == :aarch64
+
 function _plot_cpu_utilization_rates(id, usage)
     x = string(id)
     y = usage

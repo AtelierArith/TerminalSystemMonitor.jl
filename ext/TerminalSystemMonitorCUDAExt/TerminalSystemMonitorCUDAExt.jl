@@ -5,6 +5,9 @@ using MLDataDevices: CUDADevice
 using UnicodePlots: barplot
 import TerminalSystemMonitor
 
+TerminalSystemMonitor.gpu_available(::Type{CUDADevice}) =
+    CUDA.functional() && iterate(CUDA.devices()) !== nothing
+
 function _plot_gpu_utilization_rates(gpu_id, dev::CUDA.CuDevice)
     mig = uuid(dev) != parent_uuid(dev)
     nvml_dev = CUDA.NVML.Device(uuid(dev); mig)
@@ -15,7 +18,9 @@ end
 
 function TerminalSystemMonitor.plot_gpu_utilization_rates(::Type{CUDADevice})
     plts = []
+    CUDA.functional() || return plts
     devices = collect(CUDA.devices())
+    isempty(devices) && return plts
     npad = 1 + floor(Int, log10(length(devices)))
     xs = ["id: $(lpad(i-1, npad))" for i = 1:length(devices)]
 
@@ -50,6 +55,7 @@ end
 
 function TerminalSystemMonitor.plot_gpu_memory_utilization(::Type{CUDADevice})
     plts = []
+    CUDA.functional() || return plts
     for dev in CUDA.devices()
         push!(plts, _plot_gpu_memory_utilization(dev))
     end

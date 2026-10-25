@@ -13,6 +13,10 @@ function plot_cpu_utilization_rates end
 function plot_gpu_utilization_rates end
 function plot_gpu_memory_utilization end
 
+# Extensions opt in when their backend is available, regardless of which module
+# imported the optional package.
+gpu_available(::Type) = false
+
 idle_time(info::Sys.CPUinfo) = Int64(info.cpu_times!idle)
 
 busy_time(info::Sys.CPUinfo) = Int64(
@@ -29,6 +33,8 @@ The idea is borrowed from https://discourse.julialang.org/t/get-cpu-usage/24468/
 Thank you @fonsp.
 """
 function get_cpu_percent(period::Real = 1.0)
+    isfinite(period) && period >= 0 ||
+        throw(ArgumentError("sampling period must be finite and nonnegative"))
 
     info = Sys.cpu_info()
     busies = busy_time.(info)
@@ -37,10 +43,22 @@ function get_cpu_percent(period::Real = 1.0)
     sleep(period)
 
     info = Sys.cpu_info()
-    busies = busy_time.(info) .- busies
-    idles = idle_time.(info) .- idles
+    cpu_percentages(busies, idles, busy_time.(info), idle_time.(info))
+end
 
-    100 * busies ./ (idles .+ busies)
+function cpu_percentages(busies, idles, nextbusies, nextidles)
+    # CPU hotplug can change the number of counters between snapshots.
+    length(busies) == length(nextbusies) || return zeros(length(nextbusies))
+    return cpu_percent.(nextbusies .- busies, nextidles .- idles)
+end
+
+function cpu_percent(busy::Real, idle::Real)
+    # Counters may not advance in a short interval, or may reset. Neither case
+    # should send NaN/Inf or a negative percentage into the plotting library.
+    busy = max(busy, zero(busy))
+    idle = max(idle, zero(idle))
+    total = busy + idle
+    return iszero(total) ? 0.0 : 100 * (busy / total)
 end
 
 function clearline(; move_up::Bool = false)
@@ -146,120 +164,97 @@ function format_uptime(seconds::Integer)
     return "$(days) days, $(lpad(hours, 2, '0')):$(lpad(minutes, 2, '0')):$(lpad(secs, 2, '0'))"
 end
 
-function main(dummyargs...)
-    # Control cursor hiding and showing with Term.Consoles
-    Consoles.hide_cursor()
+function cpu_frame(cols, statfn)
+    plts = plot_cpu_utilization_rates(CPUDevice, statfn)
+    n = max(1, cols ÷ 25)
+    chunks = Iterators.partition(plts, n)
+    f = foldl(/, (prod(UnicodePlots.panel.(c)) for c in chunks))
+    return f / prod(UnicodePlots.panel.(plot_cpu_memory_utilization(CPUDevice)))
+end
 
-    statfn = identity
-    while true
-        try
-            rows, cols = displaysize(stdout)
-            t1 = @async begin
-                try
-                    plts = []
-                    append!(plts, plot_cpu_utilization_rates(CPUDevice, statfn))
-                    n = max(1, cols ÷ 25)
-                    chunks = collect(Iterators.partition(plts, n))
-                    f = foldl(/, map(c -> prod(UnicodePlots.panel.(c)), chunks))
+function interruptible(f)
+    try
+        return f()
+    catch e
+        e isa InterruptException && return nothing
+        rethrow()
+    end
+end
 
-                    f /= prod(UnicodePlots.panel.(plot_cpu_memory_utilization(CPUDevice)))
-                    return f
-                catch e
-                    if e isa InterruptException
-                        return nothing
-                    else
-                        rethrow(e)
-                    end
-                end
-            end
-
-            if isdefined(Main, :CUDA) &&
-               getproperty(getproperty(Main, :CUDA), :functional)()
-                wait(t1)
-                f = fetch(t1)
-                if isnothing(f)
-                    break
-                end
-                cudaplts = []
-                n = max(1, cols ÷ 50)
-                plts1 = plot_gpu_utilization_rates(CUDADevice)::Vector{Any}
-                plts2 = plot_gpu_memory_utilization(CUDADevice)::Vector{Any}
-                for i in eachindex(plts1, plts2)
-                    push!(cudaplts, plts1[i])
-                    push!(cudaplts, plts2[i])
-                end
-                gpuchunks = collect(Iterators.partition(cudaplts, n))
-                f /= foldl(/, map(c -> prod(UnicodePlots.panel.(c)), gpuchunks))
-            elseif isdefined(Main, :MacOSIOReport) && Sys.isapple() && Sys.ARCH == :aarch64
-                metalplts = []
-                n = max(1, cols ÷ 50)
-                t2 = @async begin
-                    try
-                        return plot_cpu_utilization_rates(MetalDevice)
-                    catch e
-                        if e isa InterruptException
-                            return nothing
-                        else
-                            rethrow(e)
-                        end
-                    end
-                end
-                t3 = @async begin
-                    try
-                        return plot_gpu_utilization_rates(MetalDevice)
-                    catch e
-                        if e isa InterruptException
-                            return nothing
-                        else
-                            rethrow(e)
-                        end
-                    end
-                end
-                wait(t1)
-                wait(t2)
-                wait(t3)
-                f = fetch(t1)
-                plts1 = fetch(t2)
-                plts2 = fetch(t3)
-                if isnothing(f) || isnothing(plts1) || isnothing(plts2)
-                    break
-                end
-                for i in eachindex(plts1)
-                    push!(metalplts, plts1[i])
-                end
-                for i in eachindex(plts2)
-                    push!(metalplts, plts2[i])
-                end
-                metalchunks = collect(Iterators.partition(metalplts, n))
-                f /= foldl(/, map(c -> prod(UnicodePlots.panel.(c)), metalchunks))
-            else
-                wait(t1)
-                f = fetch(t1)
-                if isnothing(f)
-                    break
-                end
-            end
-
-            Consoles.move_to_line(stdout, 1)
-            Consoles.cleartoend(stdout)
-            # If user's machine has lots of CPU cores, we can't fit all the plots in one screen.
-            # So we need to use `mean` function to reduce the number of plots.
-            if length(split(string(f), "\n")) > 2rows
-                statfn = mean
-            end
-
-            # If terminal has enough space, we can use `identity` function again to show all the plots.
-            if  rows > 2length(split(string(f), "\n"))
-                statfn = identity
-            end
-            display(f)
-        catch e
-            Consoles.show_cursor()
-            @warn "Got Exception"
-            rethrow(e) # so we don't swallow true exceptions
+function sample_plots(functions...)
+    tasks = Task[]
+    @sync begin
+        for f in functions
+            push!(tasks, @async interruptible(f))
         end
     end
-    Consoles.show_cursor()
+    return Tuple(fetch.(tasks))
+end
+
+function render_frame(cols, statfn)
+    cpu = () -> cpu_frame(cols, statfn)
+    if gpu_available(CUDADevice)
+        frame, usages, memories = sample_plots(
+            cpu,
+            () -> plot_gpu_utilization_rates(CUDADevice),
+            () -> plot_gpu_memory_utilization(CUDADevice),
+        )
+        any(isnothing, (frame, usages, memories)) && return nothing
+        plots = Any[]
+        for i in eachindex(usages, memories)
+            push!(plots, usages[i], memories[i])
+        end
+    elseif gpu_available(MetalDevice)
+        frame, clusters, gpu = sample_plots(
+            cpu,
+            () -> plot_cpu_utilization_rates(MetalDevice),
+            () -> plot_gpu_utilization_rates(MetalDevice),
+        )
+        any(isnothing, (frame, clusters, gpu)) && return nothing
+        plots = vcat(clusters, gpu)
+    else
+        return only(sample_plots(cpu))
+    end
+    if !isempty(plots)
+        chunks = Iterators.partition(plots, max(1, cols ÷ 50))
+        frame /= foldl(/, (prod(UnicodePlots.panel.(c)) for c in chunks))
+    end
+    return frame
+end
+
+function next_cpu_statfn(statfn, height, rows)
+    height > rows && return mean
+    # A compact frame fitting the terminal does not prove the full frame will fit.
+    # Retry the full layout only when the terminal grows or changes shape.
+    return statfn
+end
+
+function main(dummyargs...)
+    try
+        Consoles.hide_cursor()
+        statfn = identity
+        previous_size = displaysize(stdout)
+        while true
+            rows, cols = displaysize(stdout)
+            resized = (rows, cols) != previous_size
+            if resized
+                statfn = identity
+            end
+            previous_size = (rows, cols)
+            frame = render_frame(cols, statfn)
+            isnothing(frame) && break
+            height = length(split(string(frame), '\n'))
+            statfn = next_cpu_statfn(statfn, height, rows)
+            Consoles.move_to_line(stdout, 1)
+            Consoles.cleartoend(stdout)
+            display(frame)
+        end
+    catch e
+        e isa InterruptException && return nothing
+        rethrow()
+    finally
+        Consoles.show_cursor()
+    end
 end
 
 function monitor(args...)
