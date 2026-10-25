@@ -4,7 +4,6 @@ using CUDA
 using MLDataDevices: CUDADevice
 using UnicodePlots: barplot
 import TerminalSystemMonitor
-using TerminalSystemMonitor: extract_number_and_unit
 
 function _plot_gpu_utilization_rates(gpu_id, dev::CUDA.CuDevice)
     mig = uuid(dev) != parent_uuid(dev)
@@ -34,20 +33,9 @@ function _plot_gpu_memory_utilization(dev::CUDA.CuDevice)
     x = CUDA.NVML.name(nvml_dev)
     (; total, free, used) = CUDA.NVML.memory_info(nvml_dev)
 
-    memorytotal, memorytotal_unit = extract_number_and_unit(Base.format_bytes(total))
-    memoryusage, memoryusage_unit = extract_number_and_unit(Base.format_bytes(used))
-
-    if memorytotal_unit == "GiB"
-        # convert to MB
-        memorytotal = memorytotal * 1024
-        memorytotal_unit = "MiB"
-    end
-
-    if memoryusage_unit == "GiB"
-        # convert to MB
-        memoryusage = memoryusage * 1024
-        memoryusage_unit = "MiB"
-    end
+    memorytotal = total / 2.0^20
+    memoryusage = used / 2.0^20
+    memorytotal_unit = "MiB"
 
     return barplot(
         ["GPU Mem: "],

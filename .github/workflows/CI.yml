@@ -6,6 +6,8 @@ on:
     tags: ['*']
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 1'
 concurrency:
   # Skip intermediate builds: always.
   # Cancel intermediate builds: only if it is a pull request build.
@@ -24,12 +26,13 @@ jobs:
       matrix:
         version:
           - '1.10'
-          - 'lts'
           - '1'
         os:
           - ubuntu-latest
+          - macos-latest
+          - windows-latest
         arch:
-          - x64
+          - default
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
