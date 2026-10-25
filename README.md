@@ -112,6 +112,11 @@ or `monitor(; io=stream, frames=10)` to direct terminal output to another stream
 Frames are bounded to the current terminal size; enlarge the terminal if an
 omitted-lines message appears.
 
+Tabs in frame content are expanded to eight-column stops. ANSI styling is
+preserved across lines, while cursor/screen commands and other terminal controls
+inside frame content are discarded. The CPU layout is reconsidered when the
+number of available CPU cores changes, as well as when the terminal is resized.
+
 ### Monitoring GPU Usage
 
 Please load `CUDA.jl` package in advance:
@@ -124,6 +129,10 @@ CUDA monitoring requires NVML as well as a functional CUDA driver. If NVML is
 unavailable, CPU monitoring remains active. Individual unsupported metrics are
 shown as `N/A`. The optional `scripts/check_cuda.jl` smoke test can be run in an
 environment containing CUDA and TerminalSystemMonitor.
+
+Permission-restricted metrics, temporarily unavailable GPU handles, and invalid
+memory counters are also shown as `N/A`, so other devices and CPU monitoring can
+continue. Unexpected errors still propagate.
 
 ## Why not `htop`?
 

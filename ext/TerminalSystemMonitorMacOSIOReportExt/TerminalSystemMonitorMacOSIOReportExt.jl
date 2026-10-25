@@ -4,7 +4,8 @@ using MLDataDevices: MetalDevice
 using UnicodePlots: barplot
 import TerminalSystemMonitor
 using MacOSIOReport: Sampler, get_metrics, MTLDevice
-using TerminalSystemMonitor: extract_number_and_unit
+import MacOSIOReport
+include("sampler_lifecycle.jl")
 
 TerminalSystemMonitor.gpu_available(::Type{MetalDevice}) =
     Sys.isapple() && Sys.ARCH == :aarch64
@@ -16,10 +17,7 @@ function _plot_cpu_utilization_rates(id, usage)
 end
 
 function TerminalSystemMonitor.plot_cpu_utilization_rates(::Type{MetalDevice})
-    sampler = Sampler()
-    msec = UInt(500)
-    m = get_metrics(sampler, msec)
-    return cpu_plots(m)
+    return sample_with_sampler(cpu_plots)
 end
 
 function cpu_plots(m)
@@ -32,10 +30,7 @@ function cpu_plots(m)
 end
 
 function TerminalSystemMonitor.plot_gpu_utilization_rates(::Type{MetalDevice})
-    sampler = Sampler()
-    msec = UInt(500)
-    m = get_metrics(sampler, msec)
-    return gpu_plots(m)
+    return sample_with_sampler(gpu_plots)
 end
 
 function gpu_plots(m)
@@ -47,11 +42,16 @@ function gpu_plots(m)
     return plts
 end
 
+function sample_with_sampler(plot)
+    return TerminalSystemMonitor.with_resource(Sampler, close_sampler) do sampler
+        plot(get_metrics(sampler, UInt(500)))
+    end
+end
+
 function TerminalSystemMonitor.backend_plots(::Type{MetalDevice})
-    sampler = Sampler()
-    return TerminalSystemMonitor.shared_metric_plots(
-        () -> get_metrics(sampler, UInt(500)), cpu_plots, gpu_plots,
-    )
+    return sample_with_sampler() do metrics
+        TerminalSystemMonitor.shared_metric_plots(() -> metrics, cpu_plots, gpu_plots)
+    end
 end
 
 end # module TerminalSystemMonitorMacOSIOReportExt
