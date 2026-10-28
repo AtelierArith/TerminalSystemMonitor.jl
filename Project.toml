@@ -1,6 +1,6 @@
 name = "TerminalSystemMonitor"
 uuid = "bd0a793d-05ca-4aa9-be12-7c4786d45f63"
-version = "0.1.7"
+version = "0.1.8"
 authors = ["Satoshi Terasaki <terasakisatoshi.math@gmail.com>"]
 
 [deps]
