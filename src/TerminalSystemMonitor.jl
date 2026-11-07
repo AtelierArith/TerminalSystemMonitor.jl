@@ -318,6 +318,18 @@ function viewport(frame, rows, cols)
     return join((crop_line(line, cols - 1; style) for line in lines), '\n')
 end
 
+# Construct the entire terminal update before writing to the output stream.
+# Overwrite content first: clearing the screen beforehand exposes a blank frame.
+function frame_update(rendered)
+    out = IOBuffer()
+    for (row, line) in enumerate(split(rendered, '\n'))
+        print(out, "\e[", row, ";1H\e[0m", line, "\e[K")
+    end
+    # The cursor is after the last row's content; erase old rows below it.
+    print(out, "\e[J")
+    return String(take!(out))
+end
+
 function with_cleanup(f, cleanup)
     primary = nothing
     try
@@ -374,7 +386,7 @@ function main(dummyargs...; io::IO=stdout, frames::Integer=typemax(Int), rendere
                 frame, statfn = fit_frame(renderer, rows, cols, statfn)
                 isnothing(frame) && break
                 rows, cols = displaysize(io)
-                print(io, "\e[H\e[J", viewport(frame, rows, cols))
+                write(io, frame_update(viewport(frame, rows, cols)))
                 flush(io)
             end
         end, () -> restore_terminal(io))
